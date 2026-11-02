@@ -777,13 +777,21 @@ class CampaignOrchestrator:
                 if not clean_msg:
                     continue
 
+                try:
+                    with open(meta_dir / "data" / "scrape.log", "a", encoding="utf-8") as lf:
+                        lf.write(clean_msg + "\n")
+                except OSError:
+                    pass
+
                 if "Поиск в Ad Library" in clean_msg:
                     q_match = re.search(r"Поиск в Ad Library:\s*'([^']+)'", clean_msg)
                     if q_match:
                         q_name = q_match.group(1)
+                        w_match = re.search(r"\[(B\d)\]", clean_msg)
+                        w_tag = f"[{w_match.group(1)}] " if w_match else ""
                         for ch in ["fb", "ig"]:
                             self.status[ch]["status_text"] = f"Запрос: {q_name}"
-                        await log_stream.broadcast("META", f"🔍 Поиск в Ads Library: '{q_name}'", "info")
+                        await log_stream.broadcast("META", f"🔍 {w_tag}Поиск в Ads Library: '{q_name}'", "info")
                     continue
 
                 if "Candidate found" in clean_msg:
