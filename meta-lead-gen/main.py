@@ -307,8 +307,19 @@ Examples:
         config["plan"] = plan
         if args.max_places:
             config.setdefault("gmaps", {})["max_places_per_query"] = args.max_places
+        workers = max(1, min(MAX_SEARCH_WORKERS, args.workers or 1, len(plan)))
         try:
-            await GMapsScraper(db=db, config=config).run()
+            if workers == 1:
+                await GMapsScraper(db=db, config=config).run()
+            else:
+                console.print(f"[cyan]Google Maps: браузеров {workers}[/cyan]")
+                parts = [{**config, "plan": plan[i::workers], "worker_label": f"B{i + 1}"} for i in range(workers)]
+                for i, part in enumerate(parts):
+                    console.print(f"[dim]Браузер B{i + 1}: {len(part['plan'])} запросов[/dim]")
+                results = await asyncio.gather(*(GMapsScraper(db=db, config=p).run() for p in parts), return_exceptions=True)
+                for i, res in enumerate(results):
+                    if isinstance(res, Exception):
+                        console.print(f"[red]Браузер B{i + 1} остановился с ошибкой: {res}[/red]")
         except KeyboardInterrupt:
             console.print("\n[yellow]Прервано (Ctrl+C).[/yellow]")
         db.export_to_csv()

@@ -37,6 +37,7 @@ class GMapsScraper:
         self.max_places = int(cfg.get("max_places_per_query", 40))
         self.min_reviews = int(cfg.get("min_reviews", 3))
         self.headless = bool(config.get("headless", False))
+        self.tag = f"[{config['worker_label']}] " if config.get("worker_label") else ""
         self.current: Dict[str, Any] = {}
         self.stats = {"checked": 0, "saved": 0, "has_website": 0, "no_contact": 0, "filtered": 0}
 
@@ -57,7 +58,7 @@ class GMapsScraper:
             try:
                 for idx, item in enumerate(self.plan, 1):
                     self.current = item
-                    console.print(f"\n[cyan]▶ [{idx}/{len(self.plan)}] {item['query']}[/cyan]")
+                    console.print(f"\n[cyan]▶ {self.tag}[{idx}/{len(self.plan)}] {item['query']}[/cyan]")
                     places = await self._collect_places(feed_page, item["query"])
                     console.print(f"  Мест в выдаче: {len(places)}")
                     for place in places:
@@ -68,7 +69,7 @@ class GMapsScraper:
 
         s = self.stats
         console.print(
-            f"\n[bold green]✔ Google Maps готов. Проверено: {s['checked']} | Сохранено лидов: {s['saved']} | "
+            f"\n[bold green]✔ Google Maps {self.tag}готов. Проверено: {s['checked']} | Сохранено лидов: {s['saved']} | "
             f"С сайтом: {s['has_website']} | Без контактов: {s['no_contact']} | Отсеяно фильтрами: {s['filtered']}[/bold green]"
         )
 
