@@ -163,6 +163,7 @@ class ScrapeOptions(BaseModel):
     custom_keywords: List[str] = []
     max_ads: Optional[int] = None
     queries_per_pair: Optional[int] = None
+    workers: Optional[int] = None
     allow_websites: bool = False
 
 

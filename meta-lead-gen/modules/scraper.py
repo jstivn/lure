@@ -93,7 +93,9 @@ class MetaScraperQualifier:
             query = item["query"]
             geo_label = item.get("geo_label")
             ctx = f" [{item.get('niche_label', '')} / {geo_label}]" if geo_label else ""
-            console.print(f"\n[bold yellow]━━━ [{q_idx}/{total_queries}] Поиск в Ad Library: '{query}' (Страна: {self.country}, Лимит: {self.max_ads}){ctx} ━━━[/bold yellow]")
+            wl = self.config.get("worker_label")
+            wl = f"[{wl}] " if wl else ""
+            console.print(f"\n[bold yellow]━━━ {wl}[{q_idx}/{total_queries}] Поиск в Ad Library: '{query}' (Страна: {self.country}, Лимит: {self.max_ads}){ctx} ━━━[/bold yellow]")
             candidates, disqualified_count = await self.scrape_and_qualify_ad_library(query)
             total_scraped += len(candidates) + disqualified_count
 

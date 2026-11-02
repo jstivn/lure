@@ -100,7 +100,7 @@ function registerHubApp() {
     scrapeModalOpen: false,
     scrapeMode: 'meta',
     scrapeOptions: { niches: [], geos: [], presets: [] },
-    scrapeForm: { niches: [], geos: [], customText: '', max_ads: 10, queries_per_pair: 8, allow_websites: false },
+    scrapeForm: { niches: [], geos: [], customText: '', max_ads: 10, queries_per_pair: 8, workers: 1, allow_websites: false },
     scrapePreview: null,
     scrapePreviewError: '',
     mockupLeadId: null,
@@ -544,6 +544,7 @@ function registerHubApp() {
           customText: (sel.custom_keywords || []).join(', '),
           max_ads: mode === 'gmaps' ? 30 : (sel.max_ads || 10),
           queries_per_pair: sel.queries_per_pair || 8,
+          workers: sel.workers || 1,
           allow_websites: !!sel.allow_websites
         };
         this.scrapeModalOpen = true;
@@ -574,6 +575,7 @@ function registerHubApp() {
         custom_keywords: this.scrapeForm.customText.split(',').map(s => s.trim()).filter(Boolean),
         max_ads: Number(this.scrapeForm.max_ads) || null,
         queries_per_pair: Number(this.scrapeForm.queries_per_pair) || null,
+        workers: Number(this.scrapeForm.workers) || 1,
         allow_websites: !!this.scrapeForm.allow_websites
       };
     },

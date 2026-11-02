@@ -148,6 +148,29 @@ def resolve_scrape_plan(args, config: dict):
     return plan
 
 
+MAX_SEARCH_WORKERS = 3
+
+
+async def run_scrape_workers(db, config: dict, plan: list, workers: int):
+    """Делит план запросов по кругу между несколькими браузерами; каждый ищет свои запросы независимо."""
+    async def one(idx: int):
+        part = plan[idx::workers]
+        cfg = {**config, "plan": part, "worker_label": f"B{idx + 1}"}
+        session = BrowserSession(platform="fb", config=cfg, worker=idx)
+        try:
+            _, page = await session.start()
+            await MetaScraperQualifier(page=page, db=db, config=cfg).run()
+        finally:
+            await session.stop()
+
+    for idx in range(workers):
+        console.print(f"[dim]Браузер B{idx + 1}: {len(plan[idx::workers])} запросов[/dim]")
+    results = await asyncio.gather(*(one(i) for i in range(workers)), return_exceptions=True)
+    for idx, res in enumerate(results):
+        if isinstance(res, Exception):
+            console.print(f"[red]Браузер B{idx + 1} остановился с ошибкой: {res}[/red]")
+
+
 async def main():
     parser = argparse.ArgumentParser(
         description="Meta Ad Library Lead Generation & Safe Outreach Tool",
@@ -181,6 +204,7 @@ Examples:
     parser.add_argument("--custom", help="Comma-separated custom search keywords (no niche signal filter)")
     parser.add_argument("--max-ads", type=int, help="Ads to inspect per query")
     parser.add_argument("--queries-per-pair", type=int, help="Max queries per niche x geo pair (default 8)")
+    parser.add_argument("--workers", type=int, help=f"scrape: browsers searching in parallel, 1-{MAX_SEARCH_WORKERS} (default 1)")
     parser.add_argument("--max-places", type=int, help="gmaps: places to inspect per query (default 40)")
     parser.add_argument("--allow-websites", action="store_true", help="Do not disqualify leads that already have a website")
     parser.add_argument("--engine", choices=["playwright", "dolphin"], help="Override browser engine")
@@ -298,15 +322,23 @@ Examples:
             plan = resolve_scrape_plan(args, config)
             if plan:
                 config["plan"] = plan
-            console.print(f"[cyan]Connecting browser ({engine_name}) for Meta Ad Library scraping...[/cyan]")
-            session = BrowserSession(platform="fb", config=config)
-            try:
-                _, page = await session.start()
-                scraper = MetaScraperQualifier(page=page, db=db, config=config)
-                await scraper.run()
-                print_stats(db)
-            finally:
-                await session.stop()
+            workers = max(1, min(MAX_SEARCH_WORKERS, args.workers or 1))
+            if workers > 1 and not plan:
+                workers = 1
+            if workers > 1:
+                workers = min(workers, len(plan))
+            console.print(f"[cyan]Connecting browser ({engine_name}) for Meta Ad Library scraping (browsers: {workers})...[/cyan]")
+            if workers == 1:
+                session = BrowserSession(platform="fb", config=config)
+                try:
+                    _, page = await session.start()
+                    scraper = MetaScraperQualifier(page=page, db=db, config=config)
+                    await scraper.run()
+                finally:
+                    await session.stop()
+            else:
+                await run_scrape_workers(db, config, plan, workers)
+            print_stats(db)
 
         elif args.command == "send":
             target_plat = (args.value or "").upper()

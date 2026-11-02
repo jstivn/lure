@@ -33,6 +33,9 @@ PLATFORM_SETTINGS = {
 }
 
 
+SEARCH_WORKER_BASE_PORT = 9340
+
+
 def get_chrome_executable() -> str:
     """Finds Chrome: LURE_CHROME_PATH, standard install folders, then PATH."""
     candidates = [os.environ.get("LURE_CHROME_PATH", "")]
@@ -58,7 +61,7 @@ class BrowserSession:
     without either browser closing or interfering with the other.
     """
 
-    def __init__(self, platform: str, config: Dict[str, Any], headless: Optional[bool] = None):
+    def __init__(self, platform: str, config: Dict[str, Any], headless: Optional[bool] = None, worker: int = 0):
         plat = (platform or "fb").lower()
         if plat in ("instagram", "ig"):
             self.platform = "ig"
@@ -70,6 +73,13 @@ class BrowserSession:
         self.cdp_url = f"http://127.0.0.1:{self.cdp_port}"
         self.profile_dir = PROFILES_DIR / self.settings["profile_dir_name"]
         self.display_name = self.settings["display_name"]
+
+        # Доп. воркеры поиска (Ad Library открыта без входа): свой порт и пустой профиль, чтобы не трогать chrome_fb/chrome_ig
+        if worker > 0:
+            self.cdp_port = SEARCH_WORKER_BASE_PORT + worker
+            self.cdp_url = f"http://127.0.0.1:{self.cdp_port}"
+            self.profile_dir = PROFILES_DIR / f"chrome_search_{worker}"
+            self.display_name = f"Search #{worker + 1}"
 
         self.config = config
         self.headless = config.get("headless", False) if headless is None else headless

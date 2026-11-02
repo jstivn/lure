@@ -447,7 +447,7 @@ class CampaignOrchestrator:
         if custom:
             args += ["--custom", ",".join(k.replace(",", " ") for k in custom)]
         limits = (("max_ads", "--max-places", 1, 200), ("queries_per_pair", "--queries-per-pair", 1, 30)) if gmaps else \
-                 (("max_ads", "--max-ads", 1, 100), ("queries_per_pair", "--queries-per-pair", 1, 30))
+                 (("max_ads", "--max-ads", 1, 100), ("queries_per_pair", "--queries-per-pair", 1, 30), ("workers", "--workers", 1, 3))
         for opt_key, flag, lo, hi in limits:
             if options.get(opt_key) not in (None, ""):
                 try:
