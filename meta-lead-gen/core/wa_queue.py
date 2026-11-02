@@ -61,7 +61,23 @@ def queue_whatsapp_lead(phone: str, business_name: str, niche: str) -> bool:
         console.print(f"  [yellow]⚠ Нет {WA_DB_PATH}: передать лид в WhatsApp нельзя[/yellow]")
         return False
     try:
-        with sqlite3.connect(WA_DB_PATH) as conn:
+        with sqlite3.connect(WA_DB_PATH, timeout=30) as conn:
+            # файл мог быть создан до первого запуска WhatsApp-модуля: схема та же, что в whatsapp-outreach/core/database.py
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS leads (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    phone TEXT UNIQUE NOT NULL,
+                    business_name TEXT,
+                    niche TEXT DEFAULT 'recovery',
+                    assigned_account TEXT NOT NULL,
+                    status TEXT DEFAULT 'QUEUED',
+                    sent_message TEXT,
+                    sent_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_phone ON leads(phone)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_status_acc ON leads(status, assigned_account)")
             counts = dict(conn.execute(
                 "SELECT assigned_account, COUNT(*) FROM leads WHERE status = 'QUEUED' GROUP BY assigned_account"
             ).fetchall())
