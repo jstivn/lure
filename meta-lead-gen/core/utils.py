@@ -187,6 +187,10 @@ def clean_domain_name(url_or_domain: str) -> str:
         return url_or_domain.lower().strip()
 
 
+# Ссылки кнопок «Написать в Messenger/WhatsApp» ведут в мессенджер, это не сайт компании (всегда исключаются)
+MESSENGER_LINK_DOMAINS = {"fb.me", "m.me", "fb.com", "messenger.com", "whatsapp.com", "wa.me"}
+
+
 def is_custom_website(url_or_text: str, excluded_domains: List[str]) -> Tuple[bool, Optional[str]]:
     """
     Evaluates whether a given URL or text snippet contains a REAL custom website.
@@ -219,7 +223,7 @@ def is_custom_website(url_or_text: str, excluded_domains: List[str]) -> Tuple[bo
     ):
         return False, None
 
-    excl_set = {d.strip().lower() for d in excluded_domains if d}
+    excl_set = {d.strip().lower() for d in excluded_domains if d} | MESSENGER_LINK_DOMAINS
 
     def check_excluded(domain_str: str) -> bool:
         return any(domain_str == excl or domain_str.endswith("." + excl) for excl in excl_set)
