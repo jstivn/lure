@@ -1,0 +1,24 @@
+# --- Secrets and local configuration (use *.example.json as templates) ---
+.env
+meta-lead-gen/config.json
+whatsapp-outreach/config.json
+
+# --- Runtime data: leads, e-mail logs, browser profiles with live sessions ---
+**/data/*
+!**/data/.gitkeep
+
+# --- Python ---
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# --- Windows / editors ---
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# --- Local assistant state ---
+.claude/

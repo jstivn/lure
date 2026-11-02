@@ -1,0 +1,64 @@
+{
+  "dolphin": {
+    "api_base": "http://localhost:3001/v1.0",
+    "profile_id_fb": "",
+    "profile_id_ig": "",
+    "profile_id": "",
+    "auto_stop_profile": true
+  },
+  "search": {
+    "country": "AE",
+    "active_status": "active",
+    "platform": "instagram",
+    "only_ig_dominant": false,
+    "queries": [
+      "car rental dubai",
+      "rent a car dubai"
+    ],
+    "max_ads_per_query": 10,
+    "min_followers": 100
+  },
+  "niche": "rental",
+  "limits": {
+    "max_daily_messages": 20,
+    "max_daily_messages_fb": 10,
+    "max_daily_messages_ig": 10
+  },
+  "delays": {
+    "min_lead_delay_sec": 300,
+    "max_lead_delay_sec": 600,
+    "min_typing_delay_ms": 50,
+    "max_typing_delay_ms": 140,
+    "min_warmup_sec": 5,
+    "max_warmup_sec": 12,
+    "min_cross_platform_delay_sec": 300
+  },
+  "excluded_domains": [
+    "facebook.com",
+    "instagram.com",
+    "wa.me",
+    "linktr.ee",
+    "google.com",
+    "gmail.com"
+  ],
+  "demo_base_url": "",
+  "browser_engine": "dolphin",
+  "headless": false,
+  "outreach_mode": "full_auto",
+  "campaign": {
+    "niches": ["car_rental"],
+    "geos": ["AE_ALL"],
+    "queries_per_pair": 8,
+    "website_policy": "no_website_only"
+  },
+  "email": {
+    "sender": "",
+    "app_password": "",
+    "sender_name": "",
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "max_per_run": 100,
+    "delay_min_sec": 20,
+    "delay_max_sec": 45
+  }
+}

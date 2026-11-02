@@ -1,0 +1,541 @@
+{
+  "_comment": "Каталог ниш и гео для парсера Meta Ads Library. Сюда можно добавлять свои ниши и города: они сразу появятся в Lure в окне «Параметры поиска». keywords: поисковые фразы (к ним добавляется город гео). signals: хотя бы одно из слов должно встретиться в объявлении или названии, иначе лид отсеивается (пустой список = фильтр выключен). allow_words: слова из общего стоп-листа, которые для этой ниши НЕ считаются мусором. hook_niche: какой шаблон первого сообщения использовать (rental, detailing, epoxy, home_services, generic). demo_niche: ниша для демо-ссылки.",
+  "niches": {
+    "car_rental": {
+      "label": "Аренда авто",
+      "keywords": [
+        "car rental",
+        "rent a car",
+        "luxury car rental",
+        "sports car rental",
+        "monthly car rental",
+        "exotic car rental"
+      ],
+      "signals": [
+        "rent",
+        "rental",
+        "hire",
+        "fleet",
+        "luxury",
+        "chauffeur",
+        "supercar",
+        "exotic",
+        "car",
+        "cars",
+        "vehicle",
+        "van",
+        "limousine"
+      ],
+      "allow_words": [
+        "series"
+      ],
+      "hook_niche": "rental",
+      "demo_niche": "rental"
+    },
+    "car_detailing": {
+      "label": "Детейлинг и тонировка",
+      "keywords": [
+        "car detailing",
+        "ceramic coating",
+        "window tint",
+        "paint protection film",
+        "car wrap",
+        "car wash"
+      ],
+      "signals": [
+        "detail",
+        "tint",
+        "coating",
+        "ceramic",
+        "ppf",
+        "wrap",
+        "paint",
+        "polish",
+        "wash",
+        "car",
+        "auto",
+        "vehicle"
+      ],
+      "allow_words": [
+        "bra"
+      ],
+      "hook_niche": "generic",
+      "demo_niche": "detailing"
+    },
+    "yacht_charter": {
+      "label": "Яхты и аренда лодок",
+      "keywords": [
+        "yacht rental",
+        "yacht charter",
+        "boat rental",
+        "boat charter"
+      ],
+      "signals": [
+        "yacht",
+        "boat",
+        "charter",
+        "marine",
+        "sailing",
+        "cruise",
+        "rent"
+      ],
+      "allow_words": [],
+      "hook_niche": "yacht",
+      "demo_niche": "charter"
+    },
+    "beauty_salon": {
+      "label": "Салоны красоты",
+      "keywords": [
+        "beauty salon",
+        "nail salon",
+        "lash extensions",
+        "hair salon",
+        "brows and lashes",
+        "makeup artist"
+      ],
+      "signals": [
+        "beauty",
+        "salon",
+        "nail",
+        "nails",
+        "lash",
+        "hair",
+        "brow",
+        "makeup",
+        "spa",
+        "studio",
+        "manicure"
+      ],
+      "allow_words": [
+        "fashion",
+        "bar"
+      ],
+      "hook_niche": "beauty",
+      "demo_niche": "detailing"
+    },
+    "barbershop": {
+      "label": "Барбершопы",
+      "keywords": [
+        "barbershop",
+        "mens haircut",
+        "barber"
+      ],
+      "signals": [
+        "barber",
+        "barbershop",
+        "haircut",
+        "hair",
+        "beard",
+        "grooming"
+      ],
+      "allow_words": [
+        "bar"
+      ],
+      "hook_niche": "generic",
+      "demo_niche": "detailing"
+    },
+    "dental_clinic": {
+      "label": "Стоматологии и клиники",
+      "keywords": [
+        "dental clinic",
+        "dental implants",
+        "veneers",
+        "teeth whitening",
+        "smile makeover",
+        "dental crowns"
+      ],
+      "signals": [
+        "dental",
+        "dentist",
+        "teeth",
+        "smile",
+        "clinic",
+        "aesthetic",
+        "skin",
+        "dermatology",
+        "orthodont"
+      ],
+      "allow_words": [],
+      "hook_niche": "dental",
+      "demo_niche": "detailing"
+    },
+    "home_cleaning": {
+      "label": "Клининг и домашние услуги",
+      "keywords": [
+        "cleaning services",
+        "maid service",
+        "deep cleaning",
+        "pressure washing",
+        "ac repair"
+      ],
+      "signals": [
+        "clean",
+        "cleaning",
+        "maid",
+        "wash",
+        "washing",
+        "ac",
+        "repair",
+        "maintenance",
+        "home",
+        "house"
+      ],
+      "allow_words": [],
+      "hook_niche": "generic",
+      "demo_niche": "home"
+    },
+    "fitness": {
+      "label": "Фитнес и студии",
+      "keywords": [
+        "gym",
+        "personal trainer",
+        "yoga studio",
+        "pilates studio"
+      ],
+      "signals": [
+        "gym",
+        "fitness",
+        "trainer",
+        "training",
+        "yoga",
+        "pilates",
+        "crossfit",
+        "studio"
+      ],
+      "allow_words": [],
+      "hook_niche": "generic",
+      "demo_niche": "detailing"
+    },
+    "epoxy_floors": {
+      "label": "Эпоксидные полы (США)",
+      "keywords": [
+        "epoxy floor",
+        "garage floor coating",
+        "polyaspartic floor",
+        "concrete coating"
+      ],
+      "signals": [
+        "epoxy",
+        "flooring",
+        "floor",
+        "garage",
+        "polyaspartic",
+        "concrete",
+        "coating",
+        "resurfacing"
+      ],
+      "allow_words": [],
+      "hook_niche": "generic",
+      "demo_niche": "epoxy"
+    },
+    "aesthetics": {
+      "label": "Косметология и эстетика",
+      "keywords": [
+        "aesthetic clinic",
+        "botox",
+        "lip filler",
+        "laser hair removal",
+        "skin clinic",
+        "facial treatment"
+      ],
+      "signals": [
+        "aesthetic",
+        "botox",
+        "filler",
+        "skin",
+        "laser",
+        "facial",
+        "cosmetic",
+        "derma",
+        "clinic",
+        "beauty"
+      ],
+      "allow_words": [
+        "fashion"
+      ],
+      "hook_niche": "beauty",
+      "demo_niche": "detailing"
+    },
+    "real_estate": {
+      "label": "Недвижимость",
+      "keywords": [
+        "real estate",
+        "property for sale",
+        "apartments for sale",
+        "villas for sale",
+        "off plan property",
+        "property investment"
+      ],
+      "signals": [
+        "property",
+        "properties",
+        "real estate",
+        "realty",
+        "apartment",
+        "villa",
+        "homes",
+        "invest",
+        "estate"
+      ],
+      "allow_words": [
+        "agency",
+        "marketing"
+      ],
+      "hook_niche": "real_estate",
+      "demo_niche": "detailing"
+    },
+    "tours_villas": {
+      "label": "Туры, яхты, виллы",
+      "keywords": [
+        "yacht charter",
+        "villa rental",
+        "private tour",
+        "boat tour",
+        "holiday villa",
+        "luxury stay"
+      ],
+      "signals": [
+        "yacht",
+        "villa",
+        "tour",
+        "tours",
+        "charter",
+        "boat",
+        "resort",
+        "stay",
+        "excursion",
+        "trip",
+        "holiday",
+        "rent"
+      ],
+      "allow_words": [
+        "agency"
+      ],
+      "hook_niche": "yacht",
+      "demo_niche": "charter"
+    },
+    "renovation": {
+      "label": "Ремонт, кухни, интерьеры",
+      "keywords": [
+        "home renovation",
+        "kitchen remodeling",
+        "interior design",
+        "kitchen cabinets",
+        "bathroom remodel",
+        "general contractor"
+      ],
+      "signals": [
+        "renovation",
+        "remodel",
+        "kitchen",
+        "interior",
+        "design",
+        "cabinet",
+        "contractor",
+        "bathroom",
+        "construction",
+        "home"
+      ],
+      "allow_words": [],
+      "hook_niche": "renovation",
+      "demo_niche": "home"
+    }
+  },
+  "geos": {
+    "AE_DUBAI": {
+      "label": "ОАЭ: Дубай",
+      "country": "AE",
+      "cities": [
+        "Dubai"
+      ],
+      "market": "uae"
+    },
+    "AE_ALL": {
+      "label": "ОАЭ: Дубай, Абу-Даби, Шарджа",
+      "country": "AE",
+      "cities": [
+        "Dubai",
+        "Abu Dhabi",
+        "Sharjah"
+      ],
+      "market": "uae"
+    },
+    "SA": {
+      "label": "Саудовская Аравия",
+      "country": "SA",
+      "cities": [
+        "Riyadh",
+        "Jeddah"
+      ],
+      "market": "uae"
+    },
+    "QA": {
+      "label": "Катар",
+      "country": "QA",
+      "cities": [
+        "Doha"
+      ],
+      "market": "uae"
+    },
+    "US_TOP": {
+      "label": "США: крупные города",
+      "country": "US",
+      "cities": [
+        "Miami",
+        "Houston",
+        "Los Angeles",
+        "Dallas",
+        "Atlanta"
+      ],
+      "market": "usa"
+    },
+    "GB": {
+      "label": "Великобритания",
+      "country": "GB",
+      "cities": [
+        "London",
+        "Manchester"
+      ],
+      "market": "usa"
+    },
+    "CA": {
+      "label": "Канада",
+      "country": "CA",
+      "cities": [
+        "Toronto",
+        "Vancouver"
+      ],
+      "market": "usa"
+    },
+    "AU": {
+      "label": "Австралия",
+      "country": "AU",
+      "cities": [
+        "Sydney",
+        "Melbourne"
+      ],
+      "market": "usa"
+    },
+    "TR": {
+      "label": "Турция",
+      "country": "TR",
+      "cities": [
+        "Istanbul",
+        "Antalya",
+        "Izmir"
+      ],
+      "market": "usa"
+    },
+    "PH": {
+      "label": "Филиппины",
+      "country": "PH",
+      "cities": [
+        "Manila",
+        "Cebu"
+      ],
+      "market": "usa"
+    },
+    "MX": {
+      "label": "Мексика",
+      "country": "MX",
+      "cities": [
+        "Cancun",
+        "Tijuana",
+        "Mexico City",
+        "Playa del Carmen"
+      ],
+      "market": "usa"
+    },
+    "TH": {
+      "label": "Таиланд",
+      "country": "TH",
+      "cities": [
+        "Bangkok",
+        "Phuket",
+        "Pattaya",
+        "Chiang Mai"
+      ],
+      "market": "usa"
+    },
+    "ID_BALI": {
+      "label": "Бали (Индонезия)",
+      "country": "ID",
+      "cities": [
+        "Bali",
+        "Canggu",
+        "Ubud"
+      ],
+      "market": "usa"
+    },
+    "CY_NORTH": {
+      "label": "Северный Кипр",
+      "country": "CY",
+      "cities": [
+        "Kyrenia",
+        "Famagusta",
+        "Nicosia"
+      ],
+      "market": "usa"
+    }
+  },
+  "presets": [
+    {
+      "label": "Косметология: ОАЭ, КСА, Великобритания",
+      "niches": [
+        "aesthetics"
+      ],
+      "geos": [
+        "AE_ALL",
+        "SA",
+        "GB"
+      ]
+    },
+    {
+      "label": "Стоматология: Турция, Мексика, Таиланд",
+      "niches": [
+        "dental_clinic"
+      ],
+      "geos": [
+        "TR",
+        "MX",
+        "TH"
+      ]
+    },
+    {
+      "label": "Недвижимость: ОАЭ, Таиланд, Бали, Турция, Сев. Кипр",
+      "niches": [
+        "real_estate"
+      ],
+      "geos": [
+        "AE_ALL",
+        "TH",
+        "ID_BALI",
+        "TR",
+        "CY_NORTH"
+      ]
+    },
+    {
+      "label": "Туры, яхты, виллы: ОАЭ, Таиланд, Бали, Мексика",
+      "niches": [
+        "tours_villas"
+      ],
+      "geos": [
+        "AE_ALL",
+        "TH",
+        "ID_BALI",
+        "MX"
+      ]
+    },
+    {
+      "label": "Ремонт и интерьеры: США, Канада, Австралия",
+      "niches": [
+        "renovation"
+      ],
+      "geos": [
+        "US_TOP",
+        "CA",
+        "AU"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lure v2.0</title>
+  <link rel="icon" type="image/png" href="/static/img/logo.png">
+  
+  <!-- Apple Studio Light Design System -->
+  <link rel="stylesheet" href="/static/css/apple.css">
+  <!-- Industrial theme (overrides apple.css, appearance only) -->
+  <link rel="stylesheet" href="/static/css/industrial.css">
+
+  <script>
+    window.tailwind = {
+      theme: {
+        extend: {
+          colors: {
+            appleCanvas: '#F5F5F7',
+            appleInk: '#1D1D1F',
+            appleGray: '#6E6E73',
+            appleMuted: '#86868B',
+            appleBlue: '#0066CC',
+            applePink: '#E1306C',
+            appleGreen: '#16A34A',
+            appleTeal: '#0D9488',
+            appleAmber: '#D97706',
+            appleRed: '#DC2626'
+          }
+        }
+      }
+    };
+  </script>
+  <!-- Local Tailwind CSS -->
+  <script src="/static/js/tailwind.js"></script>
+  <!-- Local Lucide Icons -->
+  <script src="/static/js/lucide.min.js"></script>
+  <!-- App Controller (Alpine.js Data) -->
+  <script src="/static/js/app.js"></script>
+  <!-- Local Alpine.js -->
+  <script defer src="/static/js/alpine.min.js"></script>
+</head>
+<body x-data="hubApp" class="flex h-screen w-screen overflow-hidden text-[#1D1D1F] bg-[#F5F5F7]">
+
+  <!-- ==================== APPLE STUDIO LIGHT SIDEBAR ==================== -->
+  <aside class="lure-side w-[248px] flex-shrink-0 flex flex-col justify-between z-20">
+    <div class="flex flex-col">
+
+      <!-- Brand -->
+      <div class="lure-brand">
+        <img src="/static/img/logo.png" alt="Lure Logo">
+        <div>
+          <h1>LURE</h1>
+          <span>v2.0 · Outreach System</span>
+        </div>
+      </div>
+
+      <!-- Global activity status -->
+      <div class="lure-status">
+        <span class="lure-dot" :class="status.is_running ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'"></span>
+        <div class="flex flex-col">
+          <span class="t1" x-text="status.is_running ? 'Рассылка активна' : 'Ожидание запуска'"></span>
+          <span class="t2" x-text="`Активно каналов: ${status.active_channels ? status.active_channels.length : 0} из 4`"></span>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <nav>
+        <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' && 'is-active'" class="lure-nav">
+          <span class="lure-nav-l">
+            <i data-lucide="layout-grid"></i>
+            <span>Главная</span>
+          </span>
+        </button>
+
+        <button @click="currentTab = 'leads'; fetchLeads()" :class="currentTab === 'leads' && 'is-active'" class="lure-nav">
+          <span class="lure-nav-l">
+            <i data-lucide="users"></i>
+            <span>База лидов</span>
+          </span>
+          <span class="lure-badge" x-text="metrics.total_ready"></span>
+        </button>
+
+        <button @click="openReplies()" :class="currentTab === 'replies' && 'is-active'" class="lure-nav">
+          <span class="lure-nav-l">
+            <i data-lucide="message-circle"></i>
+            <span>Ответы</span>
+          </span>
+          <span class="lure-badge" x-show="unseenReplies > 0" x-text="unseenReplies"></span>
+        </button>
+
+        <button @click="currentTab = 'logs'" :class="currentTab === 'logs' && 'is-active'" class="lure-nav">
+          <span class="lure-nav-l">
+            <i data-lucide="terminal"></i>
+            <span>Терминал</span>
+          </span>
+          <span class="lure-dot" :class="wsConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'"></span>
+        </button>
+
+        <button @click="openSetup()" class="lure-nav" title="Подключение почты, браузера и аккаунтов">
+          <span class="lure-nav-l">
+            <i data-lucide="settings"></i>
+            <span>Настройка</span>
+          </span>
+          <span class="lure-badge" x-show="setupMissing() > 0" x-text="setupMissing()"></span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Footer -->
+    <div class="lure-foot">
+      <button @click="toggleSound()" class="lure-sound">
+        <span class="flex items-center gap-2">
+          <i data-lucide="volume-2" class="w-3.5 h-3.5" x-show="soundEnabled"></i>
+          <i data-lucide="volume-x" class="w-3.5 h-3.5" x-show="!soundEnabled"></i>
+          <span x-text="soundEnabled ? 'Звуковые сигналы' : 'Без звука'"></span>
+        </span>
+        <span class="tag" :class="!soundEnabled && 'off'" x-text="soundEnabled ? 'ВКЛ' : 'ВЫКЛ'"></span>
+      </button>
+
+      <div class="lure-note">
+        <div><span>Скрытый движок</span><b>Без CMD</b></div>
+        <div><span>Анти-спам защита</span><b>≥5 мин паузы</b></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== MAIN STAGE CONTENT ==================== -->
+  <main class="flex-1 flex flex-col h-screen overflow-y-auto relative bg-[#F5F5F7]">
+
+    <!-- ==================== TAB 1: DASHBOARD (BENTO GRID ARCHITECTURE) ==================== -->
+    <div x-show="currentTab === 'dashboard'" class="p-8 flex flex-col gap-6 max-w-7xl w-full mx-auto">
+      
+      <!-- TOP COMMAND BAR -->
+      <div class="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-black/[0.06] shadow-sm">
+        <div class="flex flex-col gap-1">
+          <h2 class="text-xl font-bold tracking-tight text-[#1D1D1F]">Центр управления рассылкой</h2>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#F2F2F7] text-[#1D1D1F] border border-black/[0.04]"
+                  x-text="`Квота за 24ч: ${metrics.total_sent_today} из ${metrics.total_limit_today} отправлено`"></span>
+            
+            <!-- Mini 4-Segment Progress Bar -->
+            <div class="w-28 h-2 rounded-full bg-gray-100 flex overflow-hidden border border-black/[0.04]">
+              <div class="bg-[#0066CC] transition-all" :style="`width: ${(metrics.fb.sent_today / metrics.total_limit_today) * 100}%`"></div>
+              <div class="bg-[#E1306C] transition-all" :style="`width: ${(metrics.ig.sent_today / metrics.total_limit_today) * 100}%`"></div>
+              <div class="bg-[#16A34A] transition-all" :style="`width: ${(metrics.wa1.sent_today / metrics.total_limit_today) * 100}%`"></div>
+              <div class="bg-[#0D9488] transition-all" :style="`width: ${(metrics.wa2.sent_today / metrics.total_limit_today) * 100}%`"></div>
+            </div>
+            
+            <span class="text-[11px] text-[#6E6E73]">Скользящее окно 24ч</span>
+            <label class="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#F2F2F7] text-[#1D1D1F] border border-black/[0.04]"
+                   title="Рассылка Facebook, Instagram и WhatsApp идёт только по этой нише; «В очереди» в карточках считается по ней же">
+              <span class="text-[#6E6E73] font-medium">Ниша рассылки</span>
+              <select x-effect="waNiches.niches.length; waNiches.current; $nextTick(() => $el.value = waNiches.current)"
+                      @change="setWaNiche($event.target.value)"
+                      class="bg-transparent text-xs font-semibold outline-none cursor-pointer max-w-[260px]">
+                <template x-for="n in waNiches.niches" :key="n.id">
+                  <option :value="n.id" x-text="`${n.label} · FB ${n.fb} · IG ${n.ig} · WA ${n.wa}`"></option>
+                </template>
+                <option value="all">Все ниши</option>
+              </select>
+            </label>
+            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#F2F2F7] text-[#1D1D1F] border border-black/[0.04]"
+                  title="Очередь почтовой рассылки: leads_emails_auto.csv"
+                  x-text="`Почта: ${metrics.email ? metrics.email.pending : 0} в очереди, ${metrics.email ? metrics.email.sent : 0} отправлено`"></span>
+          </div>
+        </div>
+
+        <!-- Global Action Buttons -->
+        <div class="flex items-center gap-2.5">
+          <!-- Meta Ads Scraper Button -->
+          <button @click="openScrapeModal()" :disabled="actionLoading || isScraping"
+            class="apple-btn apple-btn-white text-xs py-2 px-3.5" title="Выбор ниш и гео, поиск рекламодателей без сайта в Meta Ads Library">
+            <i data-lucide="loader-2" class="w-4 h-4 text-[#0066CC] animate-spin" x-show="isScraping"></i>
+            <i data-lucide="search" class="w-4 h-4 text-[#0066CC]" x-show="!isScraping"></i>
+            <span x-text="isScraping ? 'Сбор объявлений...' : 'Поиск Meta Ads'"></span>
+          </button>
+
+          <!-- Google Maps Scraper Button -->
+          <button @click="openScrapeModal('gmaps')" :disabled="actionLoading || isScrapingGmaps"
+            class="apple-btn apple-btn-white text-xs py-2 px-3.5" title="Выбор ниш и гео, поиск компаний без сайта в Google Maps">
+            <i data-lucide="loader-2" class="w-4 h-4 text-[#16A34A] animate-spin" x-show="isScrapingGmaps"></i>
+            <i data-lucide="map-pin" class="w-4 h-4 text-[#16A34A]" x-show="!isScrapingGmaps"></i>
+            <span x-text="isScrapingGmaps ? 'Сбор Google Maps...' : 'Поиск Google Maps'"></span>
+          </button>
+
+          <!-- Email Outreach Button -->
+          <button @click="openEmailModal()"
+            class="apple-btn apple-btn-white text-xs py-2 px-3.5" title="Рассылка писем: выберите, сколько отправить, и запустите">
+            <i data-lucide="loader-2" class="w-4 h-4 text-[#D97706] animate-spin" x-show="status.email && status.email.running"></i>
+            <i data-lucide="mail" class="w-4 h-4 text-[#D97706]" x-show="!(status.email && status.email.running)"></i>
+            <span x-text="(status.email && status.email.running) ? (status.email.mode === 'followup' ? 'Почта: проверяю ответы' : `Почта: ${status.email.sent} из ${status.email.total}`) : 'Рассылка на почту'"></span>
+          </button>
+
+          <!-- Group Pair Launch Buttons -->
+          <button @click="triggerAction('meta_parallel')" :disabled="actionLoading || (status.channels.fb.running || status.channels.ig.running)"
+            class="apple-btn apple-btn-white text-xs py-2 px-3" title="Запуск Facebook + Instagram со сдвигом 5 минут">
+            <span class="w-2 h-2 rounded-full bg-[#0066CC]"></span>
+            <span>Пара FB+IG</span>
+          </button>
+
+          <button @click="triggerAction('wa_parallel')":disabled="actionLoading || (status.channels.wa1.running || status.channels.wa2.running)"
+            class="apple-btn apple-btn-white text-xs py-2 px-3" title="Запуск WhatsApp WP1 + WP2">
+            <span class="w-2 h-2 rounded-full bg-[#16A34A]"></span>
+            <span>Пара WP1+WP2</span>
+          </button>
+
+          <!-- Launch All Button -->
+          <button @click="triggerAction('all')" :disabled="actionLoading || status.is_running"
+            class="apple-btn apple-btn-dark text-xs py-2 px-4" :class="status.is_running && 'opacity-40 cursor-not-allowed'">
+            <i data-lucide="play" class="w-3.5 h-3.5 fill-white"></i>
+            <span>Запустить всё</span>
+          </button>
+
+          <!-- Stop Button -->
+          <button @click="stopAction('all')" class="apple-btn apple-btn-danger text-xs py-2 px-3.5">
+            <i data-lucide="square" class="w-3.5 h-3.5 fill-current"></i>
+            <span>Стоп</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ==================== 4 BENTO ACCOUNT SQUARES (2x2 GRID) ==================== -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full">
+
+        <!-- ==================== CARD 1: FACEBOOK MESSENGER ==================== -->
+        <div class="bento-card card-fb p-6 flex flex-col justify-between"
+             :class="status.channels.fb.running && 'active-fb'">
+          <div>
+            <!-- Zone 1: Identification & Ring -->
+            <div class="flex items-start justify-between pb-4 border-b border-black/[0.05]">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-[#E8F2FF] border border-[#0066CC]/20 flex items-center justify-center text-[#0066CC]">
+                  <i data-lucide="globe" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-bold text-base text-[#1D1D1F]">Facebook Messenger</h3>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          :class="status.channels.fb.running ? 'bg-blue-100 text-[#0066CC]' : 'bg-gray-100 text-[#6E6E73]'"
+                          x-text="status.channels.fb.running ? 'В РАБОТЕ' : 'ГОТОВ'"></span>
+                  </div>
+                  <p class="text-xs text-[#6E6E73] font-medium" x-text="metrics.fb.target"></p>
+                </div>
+              </div>
+
+              <!-- Activity Ring + Expand Button -->
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                  <div class="ring-container">
+                    <svg class="w-full h-full -rotate-90" viewBox="0 0 64 64">
+                      <circle cx="32" cy="32" r="28" stroke-width="6" fill="none" class="ring-bg"/>
+                      <circle cx="32" cy="32" r="28" stroke-width="6" fill="none" stroke="#0066CC"
+                        class="ring-progress" stroke-dasharray="175.92" :stroke-dashoffset="getRingOffset(metrics.fb.percentage)"/>
+                    </svg>
+                    <span class="absolute text-[11px] font-bold font-mono text-[#0066CC]" x-text="`${metrics.fb.sent_today}/${metrics.fb.daily_limit}`"></span>
+                  </div>
+                  <div class="flex flex-col text-[11px]">
+                    <span class="font-bold text-[#1D1D1F]" x-text="`В очереди: ${metrics.fb.ready_leads}`"></span>
+                    <span class="text-[10px] text-[#0066CC] font-medium" x-show="metrics.fb.next_slot_in" x-text="`+1 слот: ${metrics.fb.next_slot_time}`"></span>
+                    <span class="text-[10px] text-emerald-600 font-medium" x-show="!metrics.fb.next_slot_in">Слоты свободны</span>
+                  </div>
+                </div>
+
+                <button @click="openAccountInspector('fb')" class="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-black/[0.04] flex items-center justify-center text-[#1D1D1F] transition-all" title="Раскрыть подробности аккаунта">
+                  <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Zone 2: Live Script Vision & Step Tracker -->
+            <div class="my-4">
+              <template x-if="getScriptVision('fb')">
+                <div class="bento-capsule p-4 flex flex-col gap-3"
+                     :class="getScriptVision('fb').state === 'cooldown' ? 'bg-[#FFFBEB] border-amber-200' : (getScriptVision('fb').state === 'error' ? 'bg-[#FEF2F2] border-red-200' : 'bg-[#F8F9FA]')">
+                  
+                  <!-- Lead Header (if active or lead assigned) -->
+                  <div class="flex items-center justify-between" x-show="status.channels.fb.current_lead">
+                    <div class="flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-[#0066CC] animate-pulse"></span>
+                      <span class="text-xs font-bold text-[#1D1D1F]" x-text="status.channels.fb.current_lead?.name"></span>
+                    </div>
+                    <button @click="openBrowser('fb', status.channels.fb.current_lead?.profile_url)"
+                      class="text-[10px] text-[#0066CC] hover:underline font-mono truncate max-w-[180px] flex items-center gap-1"
+                      title="Открыть профиль контакта в браузере">
+                      <span x-text="status.channels.fb.current_lead?.profile_url"></span>
+                      <i data-lucide="external-link" class="w-2.5 h-2.5"></i>
+                    </button>
+                  </div>
+
+                  <!-- 5-Step Stepper -->
+                  <div class="flex items-center justify-between gap-1 py-1">
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('fb').stepNum >= 1 && (getScriptVision('fb').stepNum === 1 ? 'node-active' : 'node-done')">
+                      <span>1. Вход</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('fb').stepNum >= 2 && (getScriptVision('fb').stepNum === 2 ? 'node-active' : 'node-done')">
+                      <span>2. Прогрев</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('fb').stepNum >= 3 && (getScriptVision('fb').stepNum === 3 ? 'node-active' : 'node-done')">
+                      <span>3. Печать</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('fb').stepNum >= 4 && (getScriptVision('fb').stepNum === 4 ? 'node-active' : 'node-done')">
+                      <span>4. Отправка</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('fb').stepNum === 5 ? 'node-active' : ''">
+                      <span>5. Пауза 5м</span>
+                    </div>
+                  </div>
+
+                  <!-- Vision & Action Text -->
+                  <div class="flex flex-col gap-1 text-xs">
+                    <div class="flex items-baseline gap-1.5 font-medium"
+                         :class="getScriptVision('fb').state === 'cooldown' ? 'text-amber-800' : (getScriptVision('fb').state === 'error' ? 'text-red-700' : 'text-[#1D1D1F]')">
+                      <span class="font-bold">Видит:</span>
+                      <span x-text="getScriptVision('fb').vision"></span>
+                    </div>
+                    
+                    <div class="flex items-baseline gap-1.5 text-[11px] text-[#6E6E73]" x-show="getScriptVision('fb').currentAction">
+                      <span class="font-bold text-[#1D1D1F]">Действие:</span>
+                      <span x-text="getScriptVision('fb').currentAction"></span>
+                    </div>
+
+                    <div class="flex items-baseline gap-1.5 text-[11px] text-[#6E6E73]">
+                      <span class="font-bold text-[#1D1D1F]">Далее:</span>
+                      <span x-text="getScriptVision('fb').nextStep"></span>
+                    </div>
+                  </div>
+
+                  <!-- Cooldown Timer Bar (if in cooldown) -->
+                  <div class="pt-2 border-t border-amber-200" x-show="status.channels.fb.cooldown_remaining > 0">
+                    <div class="flex items-center justify-between text-xs font-mono font-bold text-amber-800 mb-1">
+                      <span>Защита от спам-бана Meta:</span>
+                      <span x-text="getScriptVision('fb').timeStr"></span>
+                    </div>
+                    <div class="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-1000"
+                           :style="`width: ${Math.max(5, (1 - (status.channels.fb.cooldown_remaining / (status.channels.fb.cooldown_total || 300))) * 100)}%`"></div>
+                    </div>
+                  </div>
+
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Zone 3: Bottom Control -->
+          <div class="flex items-center gap-2 pt-2 border-t border-black/[0.05]">
+            <button @click="triggerAction('meta_fb')" :disabled="actionLoading || status.channels.fb.running"
+              x-show="!status.channels.fb.running"
+              class="apple-btn apple-btn-blue flex-1 text-xs py-2">
+              <i data-lucide="play" class="w-3.5 h-3.5 fill-white"></i>
+              <span>Запустить рассылку FB</span>
+            </button>
+            <button @click="stopAction('fb')" x-show="status.channels.fb.running"
+              class="apple-btn apple-btn-danger flex-1 text-xs py-2">
+              <i data-lucide="square" class="w-3.5 h-3.5 fill-current"></i>
+              <span>Остановить Facebook</span>
+            </button>
+            <button @click="openBrowser('fb')" :disabled="actionLoading"
+              class="apple-btn apple-btn-white text-xs py-2 px-3 flex items-center gap-1.5 transition-all shadow-sm hover:border-[#0066CC]/30 hover:text-[#0066CC]"
+              :title="status.channels.fb.current_lead ? 'Открыть страницу текущего контакта' : 'Открыть браузер Facebook'">
+              <i data-lucide="external-link" class="w-3.5 h-3.5 text-[#0066CC]"></i>
+              <span>Браузер</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ==================== CARD 2: INSTAGRAM DIRECT ==================== -->
+        <div class="bento-card card-ig p-6 flex flex-col justify-between"
+             :class="status.channels.ig.running && 'active-ig'">
+          <div>
+            <!-- Zone 1: Identification & Ring -->
+            <div class="flex items-start justify-between pb-4 border-b border-black/[0.05]">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-[#FCE8EF] border border-[#E1306C]/20 flex items-center justify-center text-[#E1306C]">
+                  <i data-lucide="camera" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-bold text-base text-[#1D1D1F]">Instagram Direct</h3>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          :class="status.channels.ig.running ? 'bg-pink-100 text-[#E1306C]' : 'bg-gray-100 text-[#6E6E73]'"
+                          x-text="status.channels.ig.running ? 'В РАБОТЕ' : 'ГОТОВ'"></span>
+                  </div>
+                  <p class="text-xs text-[#6E6E73] font-medium">Instagram Direct DM</p>
+                </div>
+              </div>
+
+              <!-- Activity Ring + Expand Button -->
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                  <div class="ring-container">
+                    <svg class="w-full h-full -rotate-90" viewBox="0 0 64 64">
+                      <circle cx="32" cy="32" r="28" stroke-width="6" fill="none" class="ring-bg"/>
+                      <circle cx="32" cy="32" r="28" stroke-width="6" fill="none" stroke="#E1306C"
+                        class="ring-progress" stroke-dasharray="175.92" :stroke-dashoffset="getRingOffset(metrics.ig.percentage)"/>
+                    </svg>
+                    <span class="absolute text-[11px] font-bold font-mono text-[#E1306C]" x-text="`${metrics.ig.sent_today}/${metrics.ig.daily_limit}`"></span>
+                  </div>
+                  <div class="flex flex-col text-[11px]">
+                    <span class="font-bold text-[#1D1D1F]" x-text="`В очереди: ${metrics.ig.ready_leads}`"></span>
+                    <span class="text-[10px] text-[#E1306C] font-medium" x-show="metrics.ig.next_slot_in" x-text="`+1 слот: ${metrics.ig.next_slot_time}`"></span>
+                    <span class="text-[10px] text-emerald-600 font-medium" x-show="!metrics.ig.next_slot_in">Слоты свободны</span>
+                  </div>
+                </div>
+
+                <button @click="openAccountInspector('ig')" class="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-black/[0.04] flex items-center justify-center text-[#1D1D1F] transition-all" title="Раскрыть подробности аккаунта">
+                  <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Zone 2: Live Script Vision & Step Tracker -->
+            <div class="my-4">
+              <template x-if="getScriptVision('ig')">
+                <div class="bento-capsule p-4 flex flex-col gap-3"
+                     :class="getScriptVision('ig').state === 'cooldown' ? 'bg-[#FFFBEB] border-amber-200' : (getScriptVision('ig').state === 'error' ? 'bg-[#FEF2F2] border-red-200' : 'bg-[#F8F9FA]')">
+                  
+                  <!-- Lead Header -->
+                  <div class="flex items-center justify-between" x-show="status.channels.ig.current_lead">
+                    <div class="flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-[#E1306C] animate-pulse"></span>
+                      <span class="text-xs font-bold text-[#1D1D1F]" x-text="status.channels.ig.current_lead?.name"></span>
+                    </div>
+                    <button @click="openBrowser('ig', status.channels.ig.current_lead?.profile_url)"
+                      class="text-[10px] text-[#E1306C] hover:underline font-mono truncate max-w-[180px] flex items-center gap-1"
+                      title="Открыть профиль контакта в браузере">
+                      <span x-text="status.channels.ig.current_lead?.profile_url"></span>
+                      <i data-lucide="external-link" class="w-2.5 h-2.5"></i>
+                    </button>
+                  </div>
+
+                  <!-- 5-Step Stepper -->
+                  <div class="flex items-center justify-between gap-1 py-1">
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('ig').stepNum >= 1 && (getScriptVision('ig').stepNum === 1 ? 'node-active' : 'node-done')">
+                      <span>1. Вход</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('ig').stepNum >= 2 && (getScriptVision('ig').stepNum === 2 ? 'node-active' : 'node-done')">
+                      <span>2. Прогрев</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('ig').stepNum >= 3 && (getScriptVision('ig').stepNum === 3 ? 'node-active' : 'node-done')">
+                      <span>3. Печать</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('ig').stepNum >= 4 && (getScriptVision('ig').stepNum === 4 ? 'node-active' : 'node-done')">
+                      <span>4. Отправка</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('ig').stepNum === 5 ? 'node-active' : ''">
+                      <span>5. Пауза 5м</span>
+                    </div>
+                  </div>
+
+                  <!-- Vision & Action Text -->
+                  <div class="flex flex-col gap-1 text-xs">
+                    <div class="flex items-baseline gap-1.5 font-medium"
+                         :class="getScriptVision('ig').state === 'cooldown' ? 'text-amber-800' : (getScriptVision('ig').state === 'error' ? 'text-red-700' : 'text-[#1D1D1F]')">
+                      <span class="font-bold">Видит:</span>
+                      <span x-text="getScriptVision('ig').vision"></span>
+                    </div>
+                    
+                    <div class="flex items-baseline gap-1.5 text-[11px] text-[#6E6E73]" x-show="getScriptVision('ig').currentAction">
+                      <span class="font-bold text-[#1D1D1F]">Действие:</span>
+                      <span x-text="getScriptVision('ig').currentAction"></span>
+                    </div>
+
+                    <div class="flex items-baseline gap-1.5 text-[11px] text-[#6E6E73]">
+                      <span class="font-bold text-[#1D1D1F]">Далее:</span>
+                      <span x-text="getScriptVision('ig').nextStep"></span>
+                    </div>
+                  </div>
+
+                  <!-- Cooldown Timer Bar -->
+                  <div class="pt-2 border-t border-amber-200" x-show="status.channels.ig.cooldown_remaining > 0">
+                    <div class="flex items-center justify-between text-xs font-mono font-bold text-amber-800 mb-1">
+                      <span>Защита от спам-бана Meta:</span>
+                      <span x-text="getScriptVision('ig').timeStr"></span>
+                    </div>
+                    <div class="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-1000"
+                           :style="`width: ${Math.max(5, (1 - (status.channels.ig.cooldown_remaining / (status.channels.ig.cooldown_total || 300))) * 100)}%`"></div>
+                    </div>
+                  </div>
+
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Zone 3: Bottom Control -->
+          <div class="flex items-center gap-2 pt-2 border-t border-black/[0.05]">
+            <button @click="triggerAction('meta_ig')" :disabled="actionLoading || status.channels.ig.running"
+              x-show="!status.channels.ig.running"
+              class="apple-btn flex-1 text-xs py-2 text-white bg-[#E1306C] hover:bg-[#C11F56]">
+              <i data-lucide="play" class="w-3.5 h-3.5 fill-white"></i>
+              <span>Запустить рассылку IG</span>
+            </button>
+            <button @click="stopAction('ig')" x-show="status.channels.ig.running"
+              class="apple-btn apple-btn-danger flex-1 text-xs py-2">
+              <i data-lucide="square" class="w-3.5 h-3.5 fill-current"></i>
+              <span>Остановить Instagram</span>
+            </button>
+            <button @click="openBrowser('ig')" :disabled="actionLoading"
+              class="apple-btn apple-btn-white text-xs py-2 px-3 flex items-center gap-1.5 transition-all shadow-sm hover:border-[#E1306C]/30 hover:text-[#E1306C]"
+              :title="status.channels.ig.current_lead ? 'Открыть страницу текущего контакта' : 'Открыть браузер Instagram'">
+              <i data-lucide="external-link" class="w-3.5 h-3.5 text-[#E1306C]"></i>
+              <span>Браузер</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ==================== CARD 3: WHATSAPP #1 BUSINESS ==================== -->
+        <div class="bento-card card-wa1 p-6 flex flex-col justify-between"
+             :class="status.channels.wa1.running && 'active-wa1'">
+          <div>
+            <!-- Zone 1: Identification & Ring -->
+            <div class="flex items-start justify-between pb-4 border-b border-black/[0.05]">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-[#E8F8EE] border border-[#16A34A]/20 flex items-center justify-center text-[#16A34A]">
+                  <i data-lucide="message-circle" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-bold text-base text-[#1D1D1F]">WhatsApp #1 Business</h3>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          :class="status.channels.wa1.running ? 'bg-green-100 text-[#16A34A]' : 'bg-gray-100 text-[#6E6E73]'"
+                          x-text="status.channels.wa1.running ? 'В РАБОТЕ' : 'ГОТОВ'"></span>
+                  </div>
+                  <p class="text-xs text-[#6E6E73] font-medium">WhatsApp • профиль WP1</p>
+                </div>
+              </div>
+
+              <!-- Activity Ring + Expand Button -->
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                  <div class="ring-container">
+                    <svg class="w-full h-full -rotate-90" viewBox="0 0 64 64">
+                      <circle cx="32" cy="32" r="28" stroke-width="6" fill="none" class="ring-bg"/>
+                      <circle cx="32" cy="32" r="28" stroke-width="6" fill="none" stroke="#16A34A"
+                        class="ring-progress" stroke-dasharray="175.92" :stroke-dashoffset="getRingOffset(metrics.wa1.percentage)"/>
+                    </svg>
+                    <span class="absolute text-[11px] font-bold font-mono text-[#16A34A]" x-text="`${metrics.wa1.sent_today}/${metrics.wa1.daily_limit}`"></span>
+                  </div>
+                  <div class="flex flex-col text-[11px]">
+                    <span class="font-bold text-[#1D1D1F]" x-text="`В очереди: ${metrics.wa1.ready_leads}`"></span>
+                    <span class="text-[10px] text-[#16A34A] font-medium" x-show="metrics.wa1.next_slot_in" x-text="`+1 слот: ${metrics.wa1.next_slot_time}`"></span>
+                    <span class="text-[10px] text-emerald-600 font-medium" x-show="!metrics.wa1.next_slot_in">Слоты свободны</span>
+                  </div>
+                </div>
+
+                <button @click="openAccountInspector('wa1')" class="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-black/[0.04] flex items-center justify-center text-[#1D1D1F] transition-all" title="Раскрыть подробности аккаунта">
+                  <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Zone 2: Live Script Vision & Step Tracker -->
+            <div class="my-4">
+              <template x-if="getScriptVision('wa1')">
+                <div class="bento-capsule p-4 flex flex-col gap-3"
+                     :class="getScriptVision('wa1').state === 'cooldown' ? 'bg-[#FFFBEB] border-amber-200' : (getScriptVision('wa1').state === 'error' ? 'bg-[#FEF2F2] border-red-200' : 'bg-[#F8F9FA]')">
+                  
+                  <!-- Lead Header -->
+                  <div class="flex items-center justify-between" x-show="status.channels.wa1.current_lead">
+                    <div class="flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse"></span>
+                      <span class="text-xs font-bold text-[#1D1D1F]" x-text="status.channels.wa1.current_lead?.name"></span>
+                    </div>
+                    <button @click="openBrowser('wa1')"
+                      class="text-[10px] text-[#16A34A] hover:underline font-mono truncate max-w-[180px] flex items-center gap-1"
+                      title="Открыть чат контакта в браузере">
+                      <span x-text="status.channels.wa1.current_lead?.phone || status.channels.wa1.current_lead?.contact_info"></span>
+                      <i data-lucide="external-link" class="w-2.5 h-2.5"></i>
+                    </button>
+                  </div>
+
+                  <!-- 5-Step Stepper -->
+                  <div class="flex items-center justify-between gap-1 py-1">
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('wa1').stepNum >= 1 && (getScriptVision('wa1').stepNum === 1 ? 'node-active' : 'node-done')">
+                      <span>1. Вход</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('wa1').stepNum >= 2 && (getScriptVision('wa1').stepNum === 2 ? 'node-active' : 'node-done')">
+                      <span>2. Прогрев</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('wa1').stepNum >= 3 && (getScriptVision('wa1').stepNum === 3 ? 'node-active' : 'node-done')">
+                      <span>3. Печать</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('wa1').stepNum >= 4 && (getScriptVision('wa1').stepNum === 4 ? 'node-active' : 'node-done')">
+                      <span>4. Отправка</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('wa1').stepNum === 5 ? 'node-active' : ''">
+                      <span>5. Пауза 5м</span>
+                    </div>
+                  </div>
+
+                  <!-- Vision & Action Text -->
+                  <div class="flex flex-col gap-1 text-xs">
+                    <div class="flex items-baseline gap-1.5 font-medium"
+                         :class="getScriptVision('wa1').state === 'cooldown' ? 'text-amber-800' : (getScriptVision('wa1').state === 'error' ? 'text-red-700' : 'text-[#1D1D1F]')">
+                      <span class="font-bold">Видит:</span>
+                      <span x-text="getScriptVision('wa1').vision"></span>
+                    </div>
+                    
+                    <div class="flex items-baseline gap-1.5 text-[11px] text-[#6E6E73]" x-show="getScriptVision('wa1').currentAction">
+                      <span class="font-bold text-[#1D1D1F]">Действие:</span>
+                      <span x-text="getScriptVision('wa1').currentAction"></span>
+                    </div>
+
+                    <div class="flex items-baseline gap-1.5 text-[11px] text-[#6E6E73]">
+                      <span class="font-bold text-[#1D1D1F]">Далее:</span>
+                      <span x-text="getScriptVision('wa1').nextStep"></span>
+                    </div>
+                  </div>
+
+                  <!-- Cooldown Timer Bar -->
+                  <div class="pt-2 border-t border-amber-200" x-show="status.channels.wa1.cooldown_remaining > 0">
+                    <div class="flex items-center justify-between text-xs font-mono font-bold text-amber-800 mb-1">
+                      <span>Защита от блокировки WhatsApp:</span>
+                      <span x-text="getScriptVision('wa1').timeStr"></span>
+                    </div>
+                    <div class="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-1000"
+                           :style="`width: ${Math.max(5, (1 - (status.channels.wa1.cooldown_remaining / (status.channels.wa1.cooldown_total || 300))) * 100)}%`"></div>
+                    </div>
+                  </div>
+
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Zone 3: Bottom Control -->
+          <div class="flex items-center gap-2 pt-2 border-t border-black/[0.05]">
+            <button @click="triggerAction('wa_wp1')" :disabled="actionLoading || status.channels.wa1.running"
+              x-show="!status.channels.wa1.running"
+              class="apple-btn apple-btn-green flex-1 text-xs py-2">
+              <i data-lucide="play" class="w-3.5 h-3.5 fill-white"></i>
+              <span>Запустить WhatsApp WP1</span>
+            </button>
+            <button @click="stopAction('wa1')" x-show="status.channels.wa1.running"
+              class="apple-btn apple-btn-danger flex-1 text-xs py-2">
+              <i data-lucide="square" class="w-3.5 h-3.5 fill-current"></i>
+              <span>Остановить WP1</span>
+            </button>
+            <button @click="openBrowser('wa1')" :disabled="actionLoading"
+              class="apple-btn apple-btn-white text-xs py-2 px-3 flex items-center gap-1.5 transition-all shadow-sm hover:border-[#16A34A]/30 hover:text-[#16A34A]"
+              :title="status.channels.wa1.current_lead ? 'Открыть чат текущего контакта' : 'Открыть браузер WhatsApp WP1'">
+              <i data-lucide="external-link" class="w-3.5 h-3.5 text-[#16A34A]"></i>
+              <span>Браузер</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ==================== CARD 4: WHATSAPP #2 PERSONAL ==================== -->
+        <div class="bento-card card-wa2 p-6 flex flex-col justify-between"
+             :class="status.channels.wa2.running && 'active-wa2'">
+          <div>
+            <!-- Zone 1: Identification & Ring -->
+            <div class="flex items-start justify-between pb-4 border-b border-black/[0.05]">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-[#E6F7F5] border border-[#0D9488]/20 flex items-center justify-center text-[#0D9488]">
+                  <i data-lucide="message-square" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-bold text-base text-[#1D1D1F]">WhatsApp #2 Personal</h3>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          :class="status.channels.wa2.running ? 'bg-teal-100 text-[#0D9488]' : 'bg-gray-100 text-[#6E6E73]'"
+                          x-text="status.channels.wa2.running ? 'В РАБОТЕ' : 'ГОТОВ'"></span>
+                  </div>
+                  <p class="text-xs text-[#6E6E73] font-medium">WhatsApp • профиль WP2</p>
+                </div>
+              </div>
+
+              <!-- Activity Ring + Expand Button -->
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                  <div class="ring-container">
+                    <svg class="w-full h-full -rotate-90" viewBox="0 0 64 64">
+                      <circle cx="32" cy="32" r="28" stroke-width="6" fill="none" class="ring-bg"/>
+                      <circle cx="32" cy="32" r="28" stroke-width="6" fill="none" stroke="#0D9488"
+                        class="ring-progress" stroke-dasharray="175.92" :stroke-dashoffset="getRingOffset(metrics.wa2.percentage)"/>
+                    </svg>
+                    <span class="absolute text-[11px] font-bold font-mono text-[#0D9488]" x-text="`${metrics.wa2.sent_today}/${metrics.wa2.daily_limit}`"></span>
+                  </div>
+                  <div class="flex flex-col text-[11px]">
+                    <span class="font-bold text-[#1D1D1F]" x-text="`В очереди: ${metrics.wa2.ready_leads}`"></span>
+                    <span class="text-[10px] text-[#0D9488] font-medium" x-show="metrics.wa2.next_slot_in" x-text="`+1 слот: ${metrics.wa2.next_slot_time}`"></span>
+                    <span class="text-[10px] text-emerald-600 font-medium" x-show="!metrics.wa2.next_slot_in">Слоты свободны</span>
+                  </div>
+                </div>
+
+                <button @click="openAccountInspector('wa2')" class="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-black/[0.04] flex items-center justify-center text-[#1D1D1F] transition-all" title="Раскрыть подробности аккаунта">
+                  <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Zone 2: Live Script Vision & Step Tracker -->
+            <div class="my-4">
+              <template x-if="getScriptVision('wa2')">
+                <div class="bento-capsule p-4 flex flex-col gap-3"
+                     :class="getScriptVision('wa2').state === 'cooldown' ? 'bg-[#FFFBEB] border-amber-200' : (getScriptVision('wa2').state === 'error' ? 'bg-[#FEF2F2] border-red-200' : 'bg-[#F8F9FA]')">
+                  
+                  <!-- Lead Header -->
+                  <div class="flex items-center justify-between" x-show="status.channels.wa2.current_lead">
+                    <div class="flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-[#0D9488] animate-pulse"></span>
+                      <span class="text-xs font-bold text-[#1D1D1F]" x-text="status.channels.wa2.current_lead?.name"></span>
+                    </div>
+                    <button @click="openBrowser('wa2')"
+                      class="text-[10px] text-[#0D9488] hover:underline font-mono truncate max-w-[180px] flex items-center gap-1"
+                      title="Открыть чат контакта в браузере">
+                      <span x-text="status.channels.wa2.current_lead?.phone || status.channels.wa2.current_lead?.contact_info"></span>
+                      <i data-lucide="external-link" class="w-2.5 h-2.5"></i>
+                    </button>
+                  </div>
+
+                  <!-- 5-Step Stepper -->
+                  <div class="flex items-center justify-between gap-1 py-1">
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('wa2').stepNum >= 1 && (getScriptVision('wa2').stepNum === 1 ? 'node-active' : 'node-done')">
+                      <span>1. Вход</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('wa2').stepNum >= 2 && (getScriptVision('wa2').stepNum === 2 ? 'node-active' : 'node-done')">
+                      <span>2. Прогрев</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('wa2').stepNum >= 3 && (getScriptVision('wa2').stepNum === 3 ? 'node-active' : 'node-done')">
+                      <span>3. Печать</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('wa2').stepNum >= 4 && (getScriptVision('wa2').stepNum === 4 ? 'node-active' : 'node-done')">
+                      <span>4. Отправка</span>
+                    </div>
+                    <div class="text-gray-300 text-[10px]">›</div>
+                    <div class="step-node flex-1 justify-center" :class="getScriptVision('wa2').stepNum === 5 ? 'node-active' : ''">
+                      <span>5. Пауза 5м</span>
+                    </div>
+                  </div>
+
+                  <!-- Vision & Action Text -->
+                  <div class="flex flex-col gap-1 text-xs">
+                    <div class="flex items-baseline gap-1.5 font-medium"
+                         :class="getScriptVision('wa2').state === 'cooldown' ? 'text-amber-800' : (getScriptVision('wa2').state === 'error' ? 'text-red-700' : 'text-[#1D1D1F]')">
+                      <span class="font-bold">Видит:</span>
+                      <span x-text="getScriptVision('wa2').vision"></span>
+                    </div>
+                    
+                    <div class="flex items-baseline gap-1.5 text-[11px] text-[#6E6E73]" x-show="getScriptVision('wa2').currentAction">
+                      <span class="font-bold text-[#1D1D1F]">Действие:</span>
+                      <span x-text="getScriptVision('wa2').currentAction"></span>
+                    </div>
+
+                    <div class="flex items-baseline gap-1.5 text-[11px] text-[#6E6E73]">
+                      <span class="font-bold text-[#1D1D1F]">Далее:</span>
+                      <span x-text="getScriptVision('wa2').nextStep"></span>
+                    </div>
+                  </div>
+
+                  <!-- Cooldown Timer Bar -->
+                  <div class="pt-2 border-t border-amber-200" x-show="status.channels.wa2.cooldown_remaining > 0">
+                    <div class="flex items-center justify-between text-xs font-mono font-bold text-amber-800 mb-1">
+                      <span>Защита от блокировки WhatsApp:</span>
+                      <span x-text="getScriptVision('wa2').timeStr"></span>
+                    </div>
+                    <div class="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-1000"
+                           :style="`width: ${Math.max(5, (1 - (status.channels.wa2.cooldown_remaining / (status.channels.wa2.cooldown_total || 300))) * 100)}%`"></div>
+                    </div>
+                  </div>
+
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Zone 3: Bottom Control -->
+          <div class="flex items-center gap-2 pt-2 border-t border-black/[0.05]">
+            <button @click="triggerAction('wa_wp2')" :disabled="actionLoading || status.channels.wa2.running"
+              x-show="!status.channels.wa2.running"
+              class="apple-btn flex-1 text-xs py-2 text-white bg-[#0D9488] hover:bg-[#0B7A6F]">
+              <i data-lucide="play" class="w-3.5 h-3.5 fill-white"></i>
+              <span>Запустить WhatsApp WP2</span>
+            </button>
+            <button @click="stopAction('wa2')" x-show="status.channels.wa2.running"
+              class="apple-btn apple-btn-danger flex-1 text-xs py-2">
+              <i data-lucide="square" class="w-3.5 h-3.5 fill-current"></i>
+              <span>Остановить WP2</span>
+            </button>
+            <button @click="openBrowser('wa2')" :disabled="actionLoading"
+              class="apple-btn apple-btn-white text-xs py-2 px-3 flex items-center gap-1.5 transition-all shadow-sm hover:border-[#0D9488]/30 hover:text-[#0D9488]"
+              :title="status.channels.wa2.current_lead ? 'Открыть чат текущего контакта' : 'Открыть браузер WhatsApp WP2'">
+              <i data-lucide="external-link" class="w-3.5 h-3.5 text-[#0D9488]"></i>
+              <span>Браузер</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ==================== SCRAPE OPTIONS MODAL (НИШИ × ГЕО) ==================== -->
+    <template x-if="scrapeModalOpen">
+      <div class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-6" @click.self="scrapeModalOpen = false" @keydown.escape.window="scrapeModalOpen = false">
+        <div class="bg-white rounded-3xl shadow-2xl border border-black/[0.06] w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-5">
+
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-[#1D1D1F]" x-text="scrapeMode === 'gmaps' ? 'Параметры поиска в Google Maps' : 'Параметры поиска в Meta Ads Library'"></h3>
+              <p class="text-xs text-[#6E6E73] mt-0.5" x-text="scrapeMode === 'gmaps' ? 'Парсер пройдёт по каждой паре, оставит компании без сайта в карточке и сохранит телефон, Instagram и Facebook. Номер ОАЭ (+971 5) уходит в очередь WhatsApp.' : 'Выберите ниши и гео: парсер пройдёт по каждой паре и оставит рекламодателей без сайта.'"></p>
+            </div>
+            <button @click="scrapeModalOpen = false" class="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] text-sm font-bold" title="Закрыть">✕</button>
+          </div>
+
+          <!-- Presets -->
+          <div class="flex flex-col gap-2" x-show="scrapeOptions.presets.length">
+            <span class="text-xs font-bold uppercase tracking-wider text-[#6E6E73]">Готовые связки ниша × гео</span>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="pr in scrapeOptions.presets" :key="pr.label">
+                <button @click="applyScrapePreset(pr)"
+                  class="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[#0066CC]/30 text-[#0066CC] bg-[#E8F2FF] hover:bg-[#D6E8FF] transition-all"
+                  x-text="pr.label"></button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Niches -->
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-[#6E6E73]">Ниши</span>
+              <span class="text-[11px] text-[#86868B]" x-text="`выбрано: ${scrapeForm.niches.length}`"></span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="n in scrapeOptions.niches" :key="n.id">
+                <button @click="toggleScrapeItem('niches', n.id)" :title="n.keywords.join(', ')"
+                  class="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                  :class="scrapeForm.niches.includes(n.id) ? 'bg-[#1D1D1F] text-white border-[#1D1D1F]' : 'bg-white text-[#1D1D1F] border-black/[0.12] hover:bg-[#F5F5F7]'"
+                  x-text="n.label"></button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Geos -->
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-[#6E6E73]">Гео</span>
+              <span class="text-[11px] text-[#86868B]" x-text="`выбрано: ${scrapeForm.geos.length}`"></span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="g in scrapeOptions.geos" :key="g.id">
+                <button @click="toggleScrapeItem('geos', g.id)" :title="g.cities.join(', ')"
+                  class="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                  :class="scrapeForm.geos.includes(g.id) ? 'bg-[#0066CC] text-white border-[#0066CC]' : 'bg-white text-[#1D1D1F] border-black/[0.12] hover:bg-[#F5F5F7]'">
+                  <span x-text="g.label"></span>
+                  <span class="opacity-60 ml-1 font-mono text-[10px]" x-text="g.country"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Custom keywords -->
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-[#6E6E73]">Свои запросы (через запятую, без фильтра по нише)</span>
+            <input type="text" x-model="scrapeForm.customText" @input.debounce.300ms="refreshScrapePreview()"
+              placeholder="например: tattoo studio, nail art, wedding photographer"
+              class="w-full bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-4 py-2 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+          </div>
+
+          <!-- Limits -->
+          <div class="flex flex-wrap items-end gap-5">
+            <label class="flex flex-col gap-1 text-[11px] font-semibold text-[#6E6E73]">
+              <span x-text="scrapeMode === 'gmaps' ? 'Мест на запрос' : 'Объявлений на запрос'"></span>
+              <input type="number" min="1" max="100" x-model.number="scrapeForm.max_ads" @input.debounce.300ms="refreshScrapePreview()"
+                class="w-28 bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] font-semibold text-[#6E6E73]">
+              Запросов на пару ниша × гео
+              <input type="number" min="1" max="30" x-model.number="scrapeForm.queries_per_pair" @input.debounce.300ms="refreshScrapePreview()"
+                class="w-28 bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+            </label>
+            <label x-show="scrapeMode !== 'gmaps'" class="flex items-center gap-2 text-xs text-[#1D1D1F] cursor-pointer font-medium pb-2">
+              <input type="checkbox" x-model="scrapeForm.allow_websites" class="rounded border-gray-300">
+              <span>Не отсеивать компании с сайтом</span>
+            </label>
+          </div>
+
+          <!-- Preview -->
+          <div class="rounded-2xl bg-[#F8F9FA] border border-black/[0.05] p-4 text-xs flex flex-col gap-1.5">
+            <template x-if="scrapePreviewError">
+              <span class="text-[#B45309] font-medium" x-text="scrapePreviewError"></span>
+            </template>
+            <template x-if="!scrapePreviewError && scrapePreview">
+              <div class="flex flex-col gap-1.5">
+                <span class="font-bold text-[#1D1D1F]" x-text="`${scrapePreview.queries} запросов, до ${scrapePreview.max_ads_total} объявлений для проверки`"></span>
+                <span class="text-[#6E6E73] font-mono text-[11px]" x-text="scrapePreview.sample.map(s => `${s.query} [${s.country}]`).join('  •  ')"></span>
+              </div>
+            </template>
+            <template x-if="!scrapePreviewError && !scrapePreview">
+              <span class="text-[#86868B]">Выберите хотя бы одну нишу и одно гео.</span>
+            </template>
+          </div>
+
+          <div class="flex items-center justify-end gap-2.5">
+            <button @click="scrapeModalOpen = false" class="apple-btn apple-btn-white text-xs py-2 px-4">Отмена</button>
+            <button @click="startScrape()" :disabled="!scrapePreview || scrapePreviewError || actionLoading"
+              class="apple-btn apple-btn-dark text-xs py-2 px-5" :class="(!scrapePreview || scrapePreviewError) && 'opacity-40 cursor-not-allowed'">
+              <span>Запустить поиск</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ==================== EMAIL OUTREACH MODAL ==================== -->
+    <template x-if="emailModalOpen">
+      <div class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-6" @click.self="emailModalOpen = false" @keydown.escape.window="emailModalOpen = false">
+        <div class="bg-white rounded-3xl shadow-2xl border border-black/[0.06] w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-5">
+
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-[#1D1D1F]">Рассылка на почту</h3>
+              <p class="text-xs text-[#6E6E73] mt-0.5" x-text="`Отправитель: ${emailOptions.sender || 'не задан'}. Каждое письмо собирается заново: свой вариант темы и текста, название компании, ниша.`"></p>
+            </div>
+            <button @click="emailModalOpen = false" class="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] text-sm font-bold" title="Закрыть">✕</button>
+          </div>
+
+          <template x-if="!emailOptions.configured">
+            <div class="rounded-2xl bg-[#FEF3C7] border border-[#F59E0B]/30 p-3 text-xs text-[#92400E] font-medium">
+              Почта не подключена: отправка не заработает.
+              <button @click="emailModalOpen = false; openSetup(1)" class="underline font-bold">Подключить в «Настройке»</button>
+            </div>
+          </template>
+
+          <!-- Running state -->
+          <template x-if="status.email && status.email.running">
+            <div class="rounded-2xl bg-[#F8F9FA] border border-black/[0.05] p-4 flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-bold text-[#1D1D1F]" x-text="(status.email.mode === 'followup' ? 'Письмо 2: ' : '') + `отправлено ${status.email.sent}` + (status.email.mode === 'followup' ? '' : ` из ${status.email.total}`) + (status.email.failed ? `, ошибок ${status.email.failed}` : '')"></span>
+                <span class="text-xs text-[#6E6E73]" x-text="status.email.status_text"></span>
+              </div>
+              <div class="w-full h-2 rounded-full bg-gray-200 overflow-hidden">
+                <div class="h-full bg-[#D97706] transition-all" :style="`width: ${status.email.total ? Math.round((status.email.sent / status.email.total) * 100) : 0}%`"></div>
+              </div>
+              <span class="text-[11px] text-[#6E6E73] font-mono truncate" x-show="status.email.current" x-text="status.email.current"></span>
+              <div class="flex justify-end">
+                <button @click="stopAction('email_send')" class="apple-btn apple-btn-danger text-xs py-2 px-4">
+                  <span>Остановить рассылку</span>
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <!-- Setup state -->
+          <template x-if="!(status.email && status.email.running)">
+            <div class="flex flex-col gap-5">
+              <div class="flex flex-wrap gap-2 text-xs">
+                <span class="px-2.5 py-1 rounded-full bg-[#F2F2F7] font-semibold" x-text="`В очереди: ${emailOptions.counts.pending}`"></span>
+                <span class="px-2.5 py-1 rounded-full bg-[#F2F2F7] font-semibold" x-text="`Отправлено всего: ${emailOptions.counts.sent}`"></span>
+                <span class="px-2.5 py-1 rounded-full font-semibold"
+                  :class="emailOptions.counts.sent_24h >= emailOptions.recommended_daily ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-[#F2F2F7]'"
+                  x-text="`За 24ч: ${emailOptions.counts.sent_24h} (безопасно до ${emailOptions.recommended_daily})`"></span>
+              </div>
+
+              <div class="flex flex-col gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-[#6E6E73]">Кому</span>
+                <div class="flex flex-wrap gap-2">
+                  <template x-for="opt in [
+                      { id: 'all', label: 'Все', n: emailOptions.counts.pending },
+                      { id: 'leads', label: 'Лиды из поиска', n: (emailOptions.counts.pending_by_source || {}).leads || 0 },
+                      { id: 'rentals', label: 'Автопрокаты', n: (emailOptions.counts.pending_by_source || {}).rentals || 0 }
+                    ]" :key="opt.id">
+                    <button @click="emailForm.source = opt.id; refreshEmailPreview()"
+                      class="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                      :class="emailForm.source === opt.id ? 'bg-[#1D1D1F] text-white border-[#1D1D1F]' : 'bg-white text-[#1D1D1F] border-black/[0.12] hover:bg-[#F5F5F7]'">
+                      <span x-text="opt.label"></span><span class="opacity-60 ml-1 font-mono text-[10px]" x-text="opt.n"></span>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-[#6E6E73]">Ниша</span>
+                <div class="flex flex-wrap gap-2">
+                  <template x-for="opt in [
+                      { id: 'all', label: 'Все ниши', n: emailOptions.counts.pending },
+                      ...Object.entries(emailOptions.counts.pending_by_niche || {}).map(([id, n]) => ({
+                        id, n, label: ({ beauty: 'Косметология', renovation: 'Ремонт и интерьеры', dental: 'Стоматология', rental: 'Автопрокат', generic: 'Прочее' })[id] || id
+                      }))
+                    ]" :key="opt.id">
+                    <button @click="emailForm.niche = opt.id; refreshEmailPreview()"
+                      class="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                      :class="emailForm.niche === opt.id ? 'bg-[#1D1D1F] text-white border-[#1D1D1F]' : 'bg-white text-[#1D1D1F] border-black/[0.12] hover:bg-[#F5F5F7]'">
+                      <span x-text="opt.label"></span><span class="opacity-60 ml-1 font-mono text-[10px]" x-text="opt.n"></span>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-end gap-5">
+                <label class="flex flex-col gap-1 text-[11px] font-semibold text-[#6E6E73]">
+                  Сколько писем отправить
+                  <input type="number" min="1" :max="Math.min(emailOptions.max_per_run, emailAvailable())" x-model.number="emailForm.count"
+                    class="w-32 bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-sm font-bold text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+                </label>
+                <div class="flex gap-1.5 pb-1">
+                  <template x-for="n in [5, 10, 25, 50]" :key="n">
+                    <button @click="emailForm.count = Math.min(n, emailAvailable())"
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#F2F2F7] hover:bg-[#E5E5EA]" x-text="n"></button>
+                  </template>
+                  <button @click="emailForm.count = Math.min(emailOptions.max_per_run, emailAvailable())"
+                    class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#F2F2F7] hover:bg-[#E5E5EA]">Макс</button>
+                </div>
+                <label class="flex flex-col gap-1 text-[11px] font-semibold text-[#6E6E73]">
+                  Пауза между письмами, сек
+                  <div class="flex items-center gap-1.5">
+                    <input type="number" min="5" max="600" x-model.number="emailForm.delay_min"
+                      class="w-20 bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+                    <span>–</span>
+                    <input type="number" min="5" max="600" x-model.number="emailForm.delay_max"
+                      class="w-20 bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+                  </div>
+                </label>
+              </div>
+              <p class="text-[11px] text-[#B45309] font-medium" x-show="emailOptions.counts.sent_24h + emailCount() > emailOptions.recommended_daily"
+                x-text="`С учётом уже отправленных за сутки выйдет ${emailOptions.counts.sent_24h + emailCount()} писем: выше безопасных ${emailOptions.recommended_daily} для нового Gmail, растёт риск попасть в спам.`"></p>
+
+              <!-- Preview -->
+              <div class="rounded-2xl bg-[#F8F9FA] border border-black/[0.05] p-4 text-xs flex flex-col gap-3">
+                <span class="font-bold text-[#1D1D1F]">Примеры писем (при отправке тексты будут отличаться)</span>
+                <template x-if="emailPreviewError"><span class="text-[#B45309] font-medium" x-text="emailPreviewError"></span></template>
+                <template x-if="!emailPreviewError && emailPreview && !emailPreview.samples.length"><span class="text-[#86868B]">В очереди нет адресов для этого источника.</span></template>
+                <template x-for="s in (emailPreview ? emailPreview.samples.slice(0, 2) : [])" :key="s.to">
+                  <div class="rounded-xl bg-white border border-black/[0.06] p-3 flex flex-col gap-1.5">
+                    <span class="text-[11px] text-[#6E6E73] font-mono" x-text="`Кому: ${s.to}`"></span>
+                    <span class="font-semibold text-[#1D1D1F]" x-text="s.subject"></span>
+                    <pre class="whitespace-pre-wrap font-sans text-[#1D1D1F] leading-relaxed" x-text="s.body"></pre>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Template editor -->
+              <div class="rounded-2xl border border-black/[0.05] p-4 text-xs flex flex-col gap-2">
+                <button @click="toggleEmailTemplate()" class="font-bold text-[#0066CC] text-left"
+                  x-text="emailTemplate.open ? 'Скрыть редактор текста' : 'Изменить текст письма'"></button>
+                <template x-if="emailTemplate.open">
+                  <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-[#1D1D1F]" for="email-tpl-subjects">Темы (по одной на строку)</label>
+                    <textarea id="email-tpl-subjects" x-model="emailTemplate.subjects" rows="2"
+                      class="bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 font-mono focus:bg-white focus:outline-none focus:border-[#0066CC]"></textarea>
+                    <label class="font-semibold text-[#1D1D1F]" for="email-tpl-body">Текст письма</label>
+                    <textarea id="email-tpl-body" x-model="emailTemplate.body" rows="9"
+                      class="bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 font-mono focus:bg-white focus:outline-none focus:border-[#0066CC]"></textarea>
+                    <p class="text-[11px] text-[#6E6E73]">Варианты в фигурных скобках через | выбираются случайно: {Hi|Hello}. Подстановки: [BUSINESS], [SOURCE], {sender}, {demo_link}.</p>
+                    <div><button @click="saveEmailTemplate()" :disabled="emailTemplate.saving" class="apple-btn apple-btn-dark text-xs py-2 px-4"
+                      x-text="emailTemplate.saving ? 'Сохраняю...' : 'Сохранить текст'"></button></div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Test -->
+              <div class="flex flex-wrap items-center gap-2">
+                <input type="email" x-model="emailForm.testTo" placeholder="тест: ваш адрес для проверки"
+                  class="flex-1 min-w-[200px] bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-4 py-2 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+                <button @click="sendEmailTest()" :disabled="emailTesting || !emailForm.testTo" class="apple-btn apple-btn-white text-xs py-2 px-4"
+                  :class="!emailForm.testTo && 'opacity-40 cursor-not-allowed'">
+                  <span x-text="emailTesting ? 'Отправляю...' : 'Отправить тест себе'"></span>
+                </button>
+              </div>
+
+              <div class="flex items-center justify-between gap-2.5">
+                <span class="text-[11px] text-[#6E6E73]" x-text="emailCount() ? `Займёт примерно ${emailEtaMinutes()} мин` : ''"></span>
+                <div class="flex items-center gap-2.5">
+                  <button @click="emailModalOpen = false" class="apple-btn apple-btn-white text-xs py-2 px-4">Отмена</button>
+                  <button @click="startEmail()" :disabled="!emailCount() || actionLoading || !emailOptions.configured"
+                    class="apple-btn apple-btn-dark text-xs py-2 px-5" :class="(!emailCount() || !emailOptions.configured) && 'opacity-40 cursor-not-allowed'">
+                    <span x-text="emailCount() ? `Отправить ${emailCount()} писем` : 'Нет писем для отправки'"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- ==================== FIRST-RUN SETUP WIZARD ==================== -->
+    <template x-if="setupOpen">
+      <div class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-6" @click.self="setupOpen = false" @keydown.escape.window="setupOpen = false">
+        <div class="bg-white rounded-3xl shadow-2xl border border-black/[0.06] w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-5" role="dialog" aria-label="Настройка Lure">
+
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-[#1D1D1F]">Настройка Lure</h3>
+              <p class="text-xs text-[#6E6E73] mt-0.5">Четыре шага, пароли хранятся только на этом компьютере. WhatsApp можно пропустить.</p>
+            </div>
+            <button @click="setupOpen = false" class="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] text-sm font-bold" title="Закрыть" aria-label="Закрыть">✕</button>
+          </div>
+
+          <!-- Stepper -->
+          <div class="flex flex-wrap gap-2">
+            <template x-for="(st, i) in setupSteps" :key="st.id">
+              <button @click="setupStep = i; setupError = ''"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                :class="setupStep === i ? 'bg-[#1D1D1F] text-white border-[#1D1D1F]' : 'bg-white text-[#1D1D1F] border-black/[0.12] hover:bg-[#F5F5F7]'">
+                <span class="w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold"
+                  :class="stepDone(st.id) ? 'bg-[#16A34A] text-white' : (setupStep === i ? 'bg-white/20' : 'bg-[#F2F2F7]')"
+                  x-text="stepDone(st.id) ? '✓' : i + 1"></span>
+                <span x-text="st.title"></span>
+              </button>
+            </template>
+          </div>
+
+          <!-- Step 1: Chrome -->
+          <div x-show="setupStep === 0" class="flex flex-col gap-3">
+            <h4 class="text-sm font-bold text-[#1D1D1F]">Браузер Google Chrome</h4>
+            <p class="text-xs text-[#6E6E73] leading-relaxed">Lure открывает отдельный Chrome-профиль для Facebook и Instagram. Ваш обычный профиль и пароли он не трогает.</p>
+            <div class="rounded-2xl border p-3 text-xs font-medium" :class="setup.chrome.ok ? 'bg-[#DCFCE7] border-[#16A34A]/30 text-[#166534]' : 'bg-[#FEF3C7] border-[#F59E0B]/30 text-[#92400E]'">
+              <span x-show="setup.chrome.ok" x-text="`Chrome найден: ${setup.chrome.path}`"></span>
+              <span x-show="!setup.chrome.ok">Chrome не найден. Установите его с google.com/chrome и нажмите «Проверить снова». Если он стоит в нестандартном месте, задайте переменную LURE_CHROME_PATH с путём к chrome.exe.</span>
+            </div>
+            <div class="flex justify-end gap-2.5">
+              <button @click="loadSetup()" class="apple-btn apple-btn-white text-xs py-2 px-4">Проверить снова</button>
+              <button @click="setupStep = 1" class="apple-btn apple-btn-dark text-xs py-2 px-5">Продолжить</button>
+            </div>
+          </div>
+
+          <!-- Step 2: Gmail -->
+          <form x-show="setupStep === 1" @submit.prevent="saveSetupEmail()" class="flex flex-col gap-3">
+            <h4 class="text-sm font-bold text-[#1D1D1F]">Почта для рассылки (Gmail)</h4>
+            <p class="text-xs text-[#6E6E73] leading-relaxed">Нужен пароль приложения, а не пароль от аккаунта. Его создают в аккаунте Google: Безопасность → Двухэтапная аутентификация → Пароли приложений (myaccount.google.com/apppasswords).</p>
+            <div class="rounded-2xl border p-3 text-xs font-medium bg-[#DCFCE7] border-[#16A34A]/30 text-[#166534]" x-show="setup.email.ok"
+              x-text="`Подключено: ${setup.email.sender}. Чтобы сменить, введите новые данные ниже.`"></div>
+            <label class="flex flex-col gap-1 text-[11px] font-semibold text-[#6E6E73]">
+              Адрес Gmail
+              <input type="email" x-model="setupForm.sender" autocomplete="off" placeholder="name@gmail.com"
+                class="bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-sm text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] font-semibold text-[#6E6E73]">
+              Пароль приложения
+              <input type="password" x-model="setupForm.app_password" autocomplete="off" placeholder="16 символов, пробелы можно оставить"
+                class="bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-sm text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] font-semibold text-[#6E6E73]">
+              Имя в подписи писем
+              <input type="text" x-model="setupForm.sender_name" autocomplete="off" placeholder="Как вас зовут"
+                class="bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-sm text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+            </label>
+            <p class="text-xs text-[#B91C1C] font-medium" x-show="setupError && setupStep === 1" x-text="setupError" role="alert"></p>
+            <div class="flex justify-end gap-2.5">
+              <button type="button" @click="setupStep = 2; setupError = ''" class="apple-btn apple-btn-white text-xs py-2 px-4">Пропустить</button>
+              <button type="submit" :disabled="setupBusy || !setupForm.sender || !setupForm.app_password" class="apple-btn apple-btn-dark text-xs py-2 px-5"
+                :class="(!setupForm.sender || !setupForm.app_password) && 'opacity-40 cursor-not-allowed'">
+                <span x-text="setupBusy ? 'Проверяю вход...' : 'Проверить и сохранить'"></span>
+              </button>
+            </div>
+          </form>
+
+          <!-- Step 3: Facebook / Instagram -->
+          <div x-show="setupStep === 2" class="flex flex-col gap-3">
+            <h4 class="text-sm font-bold text-[#1D1D1F]">Аккаунты Facebook и Instagram</h4>
+            <p class="text-xs text-[#6E6E73] leading-relaxed">Откройте окно Chrome, войдите в аккаунт, с которого пойдут сообщения, затем нажмите «Я вошёл». Вход сохраняется в отдельном профиле внутри папки Lure.</p>
+            <template x-for="ch in [{ id: 'fb', title: 'Facebook' }, { id: 'ig', title: 'Instagram' }]" :key="ch.id">
+              <div class="rounded-2xl border border-black/[0.06] bg-[#F8F9FA] p-3 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-col">
+                  <span class="text-sm font-bold text-[#1D1D1F]" x-text="ch.title"></span>
+                  <span class="text-[11px] font-medium" :class="setup.logins[ch.id].ok ? 'text-[#166534]' : 'text-[#6E6E73]'"
+                    x-text="setup.logins[ch.id].ok ? 'Вход подтверждён' : 'Вход не подтверждён'"></span>
+                </div>
+                <div class="flex gap-2">
+                  <button @click="openBrowser(ch.id)" :disabled="!setup.chrome.ok" class="apple-btn apple-btn-white text-xs py-2 px-3"
+                    :class="!setup.chrome.ok && 'opacity-40 cursor-not-allowed'" x-text="`Открыть ${ch.title}`"></button>
+                  <button x-show="!setup.logins[ch.id].ok" @click="confirmLogin(ch.id, true)" class="apple-btn apple-btn-dark text-xs py-2 px-3">Я вошёл</button>
+                  <button x-show="setup.logins[ch.id].ok" @click="confirmLogin(ch.id, false)" class="apple-btn apple-btn-white text-xs py-2 px-3">Сбросить</button>
+                </div>
+              </div>
+            </template>
+            <div class="flex justify-end">
+              <button @click="setupStep = 3" class="apple-btn apple-btn-dark text-xs py-2 px-5">Продолжить</button>
+            </div>
+          </div>
+
+          <!-- Step 4: WhatsApp -->
+          <form x-show="setupStep === 3" @submit.prevent="saveSetupWhatsApp()" class="flex flex-col gap-3">
+            <h4 class="text-sm font-bold text-[#1D1D1F]">WhatsApp (необязательно)</h4>
+            <p class="text-xs text-[#6E6E73] leading-relaxed">Рассылка в WhatsApp идёт через антидетект-браузер BitBrowser с двумя профилями. Если он вам не нужен, пропустите шаг: Facebook, Instagram и почта работают без него.</p>
+            <label class="flex flex-col gap-1 text-[11px] font-semibold text-[#6E6E73]">
+              Адрес Local API BitBrowser
+              <input type="text" x-model="setupForm.wa_api_url" placeholder="http://127.0.0.1:54345"
+                class="bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-sm text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] font-semibold text-[#6E6E73]">
+              ID профиля WhatsApp #1
+              <input type="text" x-model="setupForm.wa_profile_1" autocomplete="off"
+                class="bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-sm font-mono text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+            </label>
+            <label class="flex flex-col gap-1 text-[11px] font-semibold text-[#6E6E73]">
+              ID профиля WhatsApp #2
+              <input type="text" x-model="setupForm.wa_profile_2" autocomplete="off"
+                class="bg-[#F5F5F7] border border-black/[0.08] rounded-xl px-3 py-2 text-sm font-mono text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0066CC]">
+            </label>
+            <p class="text-xs text-[#B91C1C] font-medium" x-show="setupError && setupStep === 3" x-text="setupError" role="alert"></p>
+            <div class="flex items-center justify-between gap-2.5">
+              <span class="text-[11px] font-medium" :class="setup.whatsapp.ok ? 'text-[#166534]' : 'text-[#6E6E73]'"
+                x-text="setup.whatsapp.ok ? 'Оба профиля заданы' : 'Профили не заданы'"></span>
+              <div class="flex gap-2.5">
+                <button type="submit" :disabled="setupBusy" class="apple-btn apple-btn-white text-xs py-2 px-4">
+                  <span x-text="setupBusy ? 'Сохраняю...' : 'Сохранить профили'"></span>
+                </button>
+                <button type="button" @click="finishSetup()" class="apple-btn apple-btn-dark text-xs py-2 px-5">Завершить настройку</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </template>
+
+    <!-- ==================== EXPANDED ACCOUNT INSPECTOR MODAL ==================== -->
+    <template x-if="expandedAccount">
+      <div class="expanded-modal-backdrop" @click.self="closeAccountInspector()">
+        <div class="expanded-modal-card p-6">
+          
+          <!-- Modal Header -->
+          <div class="flex items-center justify-between pb-4 border-b border-black/[0.06]">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl flex items-center justify-center"
+                   :style="`background-color: ${getChannelMeta(expandedAccount).bg}; color: ${getChannelMeta(expandedAccount).color};`">
+                <i :data-lucide="getChannelMeta(expandedAccount).icon" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-lg font-bold text-[#1D1D1F]" x-text="getChannelMeta(expandedAccount).name"></h3>
+                  <span class="text-xs font-bold px-2 py-0.5 rounded-full"
+                        :class="status.channels[expandedAccount]?.running ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-[#6E6E73]'"
+                        x-text="status.channels[expandedAccount]?.running ? 'В РАБОТЕ' : 'ОЖИДАНИЕ'"></span>
+                </div>
+                <p class="text-xs text-[#6E6E73]" x-text="getChannelMeta(expandedAccount).sub"></p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <button @click="closeAccountInspector()" class="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] flex items-center justify-center text-[#1D1D1F] transition-all">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Modal Body (2 Columns) -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 my-5 overflow-y-auto pr-1">
+            
+            <!-- Left Column: Lead Info & iMessage Live Bubble -->
+            <div class="lg:col-span-7 flex flex-col gap-4">
+              
+              <!-- Current Lead Card -->
+              <div class="p-4 rounded-2xl bg-[#F8F9FA] border border-black/[0.05] flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-[#6E6E73]">Текущий контакт в обработке:</span>
+                  <h4 class="text-base font-bold text-[#1D1D1F] mt-1"
+                      x-text="status.channels[expandedAccount]?.current_lead ? status.channels[expandedAccount].current_lead.name : 'Нет активного лида'"></h4>
+                  <p class="text-xs font-mono text-[#0066CC] mt-0.5 truncate"
+                     x-text="status.channels[expandedAccount]?.current_lead ? (status.channels[expandedAccount].current_lead.phone || status.channels[expandedAccount].current_lead.profile_url || 'Связь установлена') : 'Нажмите Запуск для старта отправки'"></p>
+                </div>
+                <template x-if="status.channels[expandedAccount]?.current_lead">
+                  <button @click="openBrowser(expandedAccount, status.channels[expandedAccount]?.current_lead?.profile_url)"
+                    class="px-3 py-1.5 rounded-xl bg-white hover:bg-black/[0.04] border border-black/[0.08] text-xs font-medium text-[#1D1D1F] flex items-center gap-1.5 shadow-sm transition-all"
+                    title="Открыть страницу этого контакта в браузере">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5 text-[#0066CC]"></i>
+                    <span>Открыть</span>
+                  </button>
+                </template>
+              </div>
+
+              <!-- iMessage Live Message Bubble -->
+              <div class="flex flex-col gap-1.5">
+                <span class="text-[11px] font-semibold text-[#6E6E73] flex items-center gap-1.5">
+                  <i data-lucide="message-square" class="w-3.5 h-3.5 text-[#0066CC]"></i>
+                  <span>Живое превью набираемого сообщения (Spintax Hook):</span>
+                </span>
+                
+                <div class="imessage-bubble" x-show="status.channels[expandedAccount]?.current_hook">
+                  <p class="font-normal" x-text="status.channels[expandedAccount]?.current_hook"></p>
+                </div>
+                
+                <div class="p-4 rounded-2xl bg-[#F8F9FA] border border-black/[0.04] text-xs text-[#6E6E73] text-center"
+                     x-show="!status.channels[expandedAccount]?.current_hook">
+                  <span>Текст сообщения будет сгенерирован автоматически на Шаге 3 при взятии лида из очереди.</span>
+                </div>
+              </div>
+
+              <!-- Stepper details -->
+              <div class="p-4 rounded-2xl bg-[#F8F9FA] border border-black/[0.05] flex flex-col gap-2">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-[#6E6E73]">Текущая стадия воронки:</span>
+                <div class="flex items-center justify-between text-xs font-medium text-[#1D1D1F]">
+                  <span x-text="getScriptVision(expandedAccount).stepTitle"></span>
+                  <span class="text-emerald-700 font-bold" x-text="status.channels[expandedAccount]?.running ? 'Активно' : 'Ожидание'"></span>
+                </div>
+                <p class="text-xs text-[#6E6E73] leading-relaxed" x-text="getScriptVision(expandedAccount).vision"></p>
+              </div>
+
+            </div>
+
+            <!-- Right Column: Channel-specific Logs & Actions -->
+            <div class="lg:col-span-5 flex flex-col justify-between gap-4">
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-[#1D1D1F]">События аккаунта</span>
+                  <span class="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Прямой эфир
+                  </span>
+                </div>
+
+                <div class="xcode-terminal p-3 text-xs space-y-1.5 max-h-72 overflow-y-auto">
+                  <template x-for="(entry, idx) in getChannelLogs(expandedAccount)" :key="idx">
+                    <div class="terminal-row" :class="`level-${entry.level || 'info'}`">
+                      <span class="text-[#86868B] select-none text-[10px]" x-text="entry.timestamp"></span>
+                      <span class="flex-1 text-[11px] leading-relaxed text-[#1D1D1F]" x-text="entry.message"></span>
+                    </div>
+                  </template>
+                  <div x-show="getChannelLogs(expandedAccount).length === 0" class="text-center py-8 text-[#86868B] text-xs">
+                    Нет недавних событий по этому каналу.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick modal footer button -->
+              <div class="flex items-center gap-2 pt-3 border-t border-black/[0.06]">
+                <button @click="openBrowser(expandedAccount)" class="apple-btn apple-btn-white text-xs py-2 px-3 flex items-center gap-1.5" title="Открыть окно браузера этого аккаунта">
+                  <i data-lucide="external-link" class="w-3.5 h-3.5 text-[#0066CC]"></i>
+                  <span>Браузер</span>
+                </button>
+                <button @click="closeAccountInspector(); currentTab = 'logs'" class="apple-btn apple-btn-white flex-1 text-xs py-2">
+                  <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+                  <span>Открыть полный терминал</span>
+                </button>
+                <button @click="closeAccountInspector()" class="apple-btn apple-btn-dark text-xs py-2 px-4">
+                  <span>Свернуть</span>
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </template>
+
+    <!-- ==================== TAB 2: UNIFIED LEADS TABLE (LINEAR / APPLE NUMBERS) ==================== -->
+    <div x-show="currentTab === 'leads'" class="p-8 flex flex-col gap-5 max-w-7xl w-full mx-auto">
+      
+      <!-- Filters and Search Toolbar -->
+      <div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-black/[0.06] shadow-sm">
+        
+        <!-- Platform segmented tabs -->
+        <div class="segmented-control">
+          <button @click="leadFilters.platform = 'ALL'; fetchLeads()" :class="leadFilters.platform === 'ALL' && 'active'" class="segmented-btn">Все</button>
+          <button @click="leadFilters.platform = 'FB'; fetchLeads()" :class="leadFilters.platform === 'FB' && 'active'" class="segmented-btn">Facebook</button>
+          <button @click="leadFilters.platform = 'IG'; fetchLeads()" :class="leadFilters.platform === 'IG' && 'active'" class="segmented-btn">Instagram</button>
+          <button @click="leadFilters.platform = 'WA1'; fetchLeads()" :class="leadFilters.platform === 'WA1' && 'active'" class="segmented-btn">WhatsApp #1</button>
+          <button @click="leadFilters.platform = 'WA2'; fetchLeads()" :class="leadFilters.platform === 'WA2' && 'active'" class="segmented-btn">WhatsApp #2</button>
+        </div>
+
+        <!-- Hide disqualified -->
+        <label class="flex items-center gap-2 text-xs text-[#1D1D1F] font-semibold cursor-pointer select-none">
+          <input type="checkbox" x-model="leadFilters.hideDisqualified" @change="fetchLeads()" class="w-4 h-4 accent-[#0066CC]">
+          Скрыть отсеянных
+        </label>
+
+        <!-- Search Bar -->
+        <div class="flex items-center gap-3 flex-1 max-w-md">
+          <div class="relative w-full">
+            <i data-lucide="search" class="w-4 h-4 text-[#86868B] absolute left-3.5 top-2.5"></i>
+            <input type="text" x-model="leadFilters.search" @input.debounce.300ms="fetchLeads()"
+              placeholder="Поиск по названию компании или контакту..."
+              class="w-full bg-[#F5F5F7] border border-black/[0.08] rounded-xl pl-10 pr-4 py-2 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:outline-none focus:border-[#0066CC] transition-all">
+          </div>
+        </div>
+      </div>
+
+      <!-- Leads Table Card -->
+      <div class="rounded-2xl bg-white border border-black/[0.06] shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-[#F8F9FA] text-[#6E6E73] uppercase text-[10px] tracking-wider border-b border-black/[0.06] font-semibold">
+              <tr>
+                <th class="py-3 px-5">Компания</th>
+                <th class="py-3 px-5">Канал</th>
+                <th class="py-3 px-5">Контакт / Ссылка</th>
+                <th class="py-3 px-5">Почта</th>
+                <th class="py-3 px-5">Статус</th>
+                <th class="py-3 px-5">Время отправки</th>
+                <th class="py-3 px-5 text-right">Действие</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-black/[0.04] text-[#1D1D1F]">
+              <template x-for="lead in leads" :key="`${lead.source}_${lead.id}`">
+                <tr class="hover:bg-[#F5F7FA] transition-colors">
+                  <td class="py-3.5 px-5">
+                    <div class="font-semibold text-[#1D1D1F]" x-text="lead.business_name"></div>
+                    <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <template x-if="lead.website_found || lead.has_website">
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold" title="Имеет сайт — Приоритет">
+                          <span x-text="lead.website_found || 'Сайт'"></span>
+                        </span>
+                      </template>
+                      <template x-if="lead.ad_cta_type">
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-medium" x-text="lead.ad_cta_type"></span>
+                      </template>
+                      <template x-if="lead.custom_info">
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-bold" title="Бот обучен по реальным услугам">
+                          Обучен
+                        </span>
+                      </template>
+                    </div>
+                  </td>
+                  <td class="py-3.5 px-5">
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
+                      :class="lead.platform === 'FB' ? 'bg-[#E8F2FF] text-[#0066CC]' : (lead.platform === 'IG' ? 'bg-[#FCE8EF] text-[#E1306C]' : (lead.platform === 'WA1' ? 'bg-[#E8F8EE] text-[#16A34A]' : 'bg-[#E6F7F5] text-[#0D9488]'))"
+                      x-text="lead.platform"></span>
+                  </td>
+                  <td class="py-3.5 px-5 text-[#6E6E73] font-mono text-[11px]" x-text="lead.contact_info"></td>
+                  <td class="py-3.5 px-5 text-[#6E6E73] font-mono text-[11px]" x-text="lead.email || '—'"></td>
+                  <td class="py-3.5 px-5">
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap"
+                      :class="statusClass(lead.status)"
+                      :title="lead.status"
+                      x-text="statusLabel(lead.status)"></span>
+                  </td>
+                  <td class="py-3.5 px-5 text-[#86868B] text-[11px] font-mono" x-text="lead.sent_at ? lead.sent_at.slice(0, 16).replace('T', ' ') : '—'"></td>
+                  <td class="py-3.5 px-5 text-right">
+                    <div class="flex items-center justify-end gap-1.5">
+                      <!-- Open in Browser button -->
+                      <button @click="openLeadBrowser(lead)"
+                        class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] text-[11px] font-semibold transition-all flex items-center gap-1"
+                        title="Открыть страницу этого контакта в браузере">
+                        <i data-lucide="external-link" class="w-3 h-3 text-[#6E6E73]"></i>
+                        <span>Профиль</span>
+                      </button>
+                      <!-- Mockup image button -->
+                      <button @click="makeMockup(lead)" :disabled="mockupLeadId === lead.source + ':' + lead.id"
+                        class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] text-[11px] font-semibold transition-all"
+                        title="Сделать картинку-макет и сохранить на рабочий стол">
+                        <span x-show="mockupLeadId !== lead.source + ':' + lead.id">Макет</span>
+                        <span x-show="mockupLeadId === lead.source + ':' + lead.id" class="animate-spin">⏳</span>
+                      </button>
+                      <!-- Reset button -->
+                      <button @click="resetLead(lead.source, lead.id)" title="Сбросить в очередь"
+                        class="px-2 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#6E6E73] text-[11px] font-semibold transition-all">
+                        ↺
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="leads.length === 0">
+                <td colspan="7" class="text-center py-12 text-[#86868B]">
+                  В базе пока нет лидов по заданным фильтрам.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB: REPLIES ==================== -->
+    <div x-show="currentTab === 'replies'" class="p-8 flex flex-col gap-6 max-w-7xl w-full mx-auto">
+
+      <div class="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-black/[0.06] shadow-sm">
+        <div class="flex flex-col gap-1">
+          <h2 class="text-xl font-bold tracking-tight text-[#1D1D1F]">Ответы лидов</h2>
+          <span class="text-xs text-[#6E6E73]"
+                x-text="replyWatcher.enabled ? `Проверка в открытых браузерах примерно раз в ${Math.round(replyWatcher.interval / 60)} мин` : 'Автопроверка выключена'"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click="markRepliesSeen()" class="apple-btn apple-btn-white text-xs py-2 px-3" x-show="unseenReplies > 0">Отметить прочитанными</button>
+          <button @click="toggleReplyWatcher()" class="apple-btn apple-btn-white text-xs py-2 px-3"
+                  x-text="replyWatcher.enabled ? 'Выключить проверку' : 'Включить проверку'"></button>
+          <button @click="checkRepliesNow()" :disabled="replyWatcher.checking" class="apple-btn text-xs py-2 px-3"
+                  x-text="replyWatcher.checking ? 'Проверяю...' : 'Проверить сейчас'"></button>
+        </div>
+      </div>
+
+      <!-- Состояние каналов -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <template x-for="ch in ['fb', 'ig', 'wa1', 'wa2']" :key="ch">
+          <div class="p-4 rounded-2xl bg-white border border-black/[0.06] shadow-sm flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="lure-dot"
+                    :class="{'bg-emerald-500': replyWatcher.channels[ch]?.state === 'ok', 'bg-amber-400': ['off', 'wait', 'idle'].includes(replyWatcher.channels[ch]?.state), 'bg-red-500': replyWatcher.channels[ch]?.state === 'error'}"></span>
+              <span class="text-sm font-bold text-[#1D1D1F]" x-text="replyChannelName(ch)"></span>
+            </div>
+            <span class="text-[11px] text-[#6E6E73]" x-text="replyWatcher.channels[ch]?.text || ''"></span>
+            <span class="text-[10px] text-[#86868B]" x-show="replyWatcher.channels[ch]?.last_check"
+                  x-text="`Проверено в ${replyWatcher.channels[ch]?.last_check}`"></span>
+          </div>
+        </template>
+      </div>
+
+      <!-- Список ответов -->
+      <div class="rounded-2xl bg-white border border-black/[0.06] shadow-sm overflow-hidden">
+        <template x-for="r in replies" :key="r.source + r.id">
+          <div class="flex items-center justify-between gap-4 px-5 py-3 border-b border-black/[0.04] last:border-0"
+               :class="String(r.replied_at) > repliesSeenAt && 'bg-[#F0F7FF]'">
+            <div class="flex flex-col min-w-0">
+              <span class="text-sm font-semibold text-[#1D1D1F] truncate" x-text="r.name"></span>
+              <span class="text-[11px] text-[#6E6E73]"
+                    x-text="`${replyChannelName(r.channel)} • ответил ${formatReplyTime(r.replied_at)}`"></span>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <button @click="openBrowser(r.channel, r.url)" class="apple-btn apple-btn-white text-xs py-1.5 px-3">Открыть чат</button>
+              <button @click="makeMockup(r)" :disabled="mockupLeadId === r.source + ':' + r.id" class="apple-btn apple-btn-white text-xs py-1.5 px-3"
+                      title="Сделать картинку-макет и сохранить на рабочий стол">
+                <span x-show="mockupLeadId !== r.source + ':' + r.id">Макет</span>
+                <span x-show="mockupLeadId === r.source + ':' + r.id" class="animate-spin">⏳</span>
+              </button>
+              <button @click="markReplyHandled(r)" class="apple-btn text-xs py-1.5 px-3" title="Убрать из списка ответов">Отработал</button>
+            </div>
+          </div>
+        </template>
+        <div x-show="replies.length === 0" class="text-center py-12 text-[#86868B] text-sm">
+          Пока никто не ответил. Как только лид напишет, он появится здесь.
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 3: LIVE LOGS (XCODE LIGHT CONSOLE) ==================== -->
+    <div x-show="currentTab === 'logs'" class="p-8 flex flex-col gap-4 max-w-7xl w-full mx-auto h-[calc(100vh-4rem)]">
+      
+      <!-- Log Controls Bar -->
+      <div class="flex items-center justify-between p-4 rounded-2xl bg-white border border-black/[0.06] shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="segmented-control">
+            <button @click="logFilter = 'ALL'" :class="logFilter === 'ALL' && 'active'" class="segmented-btn">Все логи</button>
+            <button @click="logFilter = 'FB'" :class="logFilter === 'FB' && 'active'" class="segmented-btn">Facebook</button>
+            <button @click="logFilter = 'IG'" :class="logFilter === 'IG' && 'active'" class="segmented-btn">Instagram</button>
+            <button @click="logFilter = 'WA'" :class="logFilter === 'WA' && 'active'" class="segmented-btn">WhatsApp</button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <label class="flex items-center gap-2 text-xs text-[#6E6E73] cursor-pointer font-medium">
+            <input type="checkbox" x-model="autoScrollLogs" class="rounded border-gray-300 text-[#0066CC] focus:ring-[#0066CC]">
+            <span>Автопрокрутка</span>
+          </label>
+          <button @click="logs = []" class="apple-btn apple-btn-white text-xs py-1.5 px-3">
+            <span>Очистить</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Log Output Terminal (Xcode Light Style) -->
+      <div id="logContainer" class="xcode-terminal p-5 text-xs overflow-y-auto flex-1 space-y-1 leading-relaxed">
+        <template x-for="(entry, index) in filteredLogs" :key="index">
+          <div class="terminal-row" :class="`level-${entry.level || 'info'}`">
+            <span class="text-[#86868B] select-none text-[10px]" x-text="entry.timestamp"></span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase select-none"
+              :class="entry.channel === 'FB' ? 'bg-[#E8F2FF] text-[#0066CC]' : (entry.channel === 'IG' ? 'bg-[#FCE8EF] text-[#E1306C]' : (entry.channel === 'WA' || entry.channel === 'WA1' || entry.channel === 'WA2' ? 'bg-[#E8F8EE] text-[#16A34A]' : 'bg-gray-100 text-gray-700'))"
+              x-text="`[${entry.channel}]`"></span>
+            <span :class="entry.level === 'error' ? 'text-[#DC2626] font-semibold' : (entry.level === 'success' ? 'text-[#15803D] font-semibold' : (entry.level === 'warning' ? 'text-[#B45309]' : 'text-[#1D1D1F]'))"
+              x-text="entry.message"></span>
+          </div>
+        </template>
+        <div x-show="filteredLogs.length === 0" class="flex flex-col items-center justify-center py-28 text-center text-[#86868B]">
+          <i data-lucide="terminal" class="w-9 h-9 text-[#86868B]/40 mb-3"></i>
+          <p class="text-sm font-semibold text-[#1D1D1F] mb-1">Журнал событий пуст</p>
+          <p class="text-xs text-[#6E6E73]">Запустите поиск лидов или рассылку для просмотра сообщений в реальном времени.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== FLOATING TOAST NOTIFICATIONS (macOS Pills) ==================== -->
+    <div class="toast-container">
+      <template x-for="t in toasts" :key="t.id">
+        <div class="toast-item">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+               :class="t.type === 'success' ? 'bg-emerald-100 text-emerald-600' : (t.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-[#0066CC]')">
+            <i data-lucide="check" class="w-3.5 h-3.5 stroke-[2.5]" x-show="t.type === 'success'"></i>
+            <i data-lucide="alert-triangle" class="w-3.5 h-3.5" x-show="t.type === 'warning'"></i>
+            <i data-lucide="info" class="w-3.5 h-3.5" x-show="t.type === 'info'"></i>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <div class="text-xs font-bold text-[#1D1D1F]" x-text="t.title"></div>
+            <div class="text-[11px] text-[#6E6E73] truncate" x-text="t.message"></div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+  </main>
+
+  <!-- Lucide Icons Refresh on DOM and Alpine changes -->
+  <script>
+    function refreshIcons() {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    }
+    document.addEventListener('DOMContentLoaded', refreshIcons);
+    document.addEventListener('alpine:initialized', refreshIcons);
+    setInterval(refreshIcons, 1200);
+  </script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "_help": "Тексты почтовой рассылки. Спинтакс {a|b|c} раскрывается заново для каждого письма. Подстановки: [BUSINESS] название компании, [SOURCE] откуда лид (your ad on Instagram / your ad on Facebook / your business on Google Maps), {demo_link} ссылка на демо. Блок niches переопределяет subjects/body для конкретной hook_niche.",
+  "subjects": [
+    "{Quick question|Question about bookings|Booking question|Quick one} {for [BUSINESS]|}"
+  ],
+  "body": "{Hi|Hello|Hi there} {[BUSINESS] team|},\n\n{I saw|I came across|I noticed} [SOURCE].\n\n{Quick question|Just curious}: {how do most clients book with you|what’s the main way people book with you}? {Through Instagram or WhatsApp messages|By message}, or {do you have a booking page|is there a page with your prices}?\n\n{Thanks|Thank you|Cheers},\n{sender}\n\n{P.S. If this isn’t relevant, just reply “no” and I won’t email again.|P.S. Not relevant? Just let me know and I won’t follow up.}",
+  "followup_body": "Thanks for getting back to me! I make simple booking pages for local businesses. People who click an ad usually compare 2–3 options, and a page with your prices and a messenger button helps them choose you.\n\nI made a quick example for [BUSINESS]: {demo_link}\n\n{sender}",
+  "niche_labels": {
+    "rental": "car rental",
+    "beauty": "clinic",
+    "dental": "clinic",
+    "real_estate": "agency",
+    "yacht": "yacht company",
+    "renovation": "renovation company",
+    "generic": "business"
+  },
+  "niches": {
+    "renovation": {
+      "subjects": [
+        "{Quick question|Question about quote requests|Quick one} {for [BUSINESS]|}"
+      ],
+      "body": "{Hi|Hello|Hi there} {[BUSINESS] team|},\n\n{I saw|I came across|I noticed} [SOURCE].\n\n{Quick question|Just curious}: {how do most homeowners ask you for a quote|what’s the main way people reach out for a quote}? {Through Instagram or Facebook messages|By message or phone}, or {do you have a page where they can request an estimate|is there a page with your projects and a quote form}?\n\n{Thanks|Thank you|Cheers},\n{sender}\n\n{P.S. If this isn’t relevant, just reply “no” and I won’t email again.|P.S. Not relevant? Just let me know and I won’t follow up.}"
+    }
+  }
+}

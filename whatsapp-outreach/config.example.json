@@ -1,0 +1,29 @@
+{
+  "bitbrowser_api_url": "http://127.0.0.1:54345",
+  "outreach_mode": "full_auto",
+  "default_niche": "detailing",
+  "list_txt_path": "data/list.txt",
+  "profiles": {
+    "profile_1": {
+      "key": "profile_1",
+      "name": "WP 1",
+      "id": "",
+      "daily_limit": 6,
+      "min_delay_sec": 900,
+      "max_delay_sec": 1200
+    },
+    "profile_2": {
+      "key": "profile_2",
+      "name": "WP 2",
+      "id": "",
+      "daily_limit": 6,
+      "min_delay_sec": 1200,
+      "max_delay_sec": 1500
+    }
+  },
+  "typing_speed": {
+    "min_ms": 35,
+    "max_ms": 95
+  },
+  "min_cross_platform_delay_sec": 300
+}

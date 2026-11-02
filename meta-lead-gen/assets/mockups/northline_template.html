@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{CLINIC_NAME}}</title>
+<!--
+  TEMPLATE: renovation / laptop + phone mockup (Toronto example). Screenshot size: 1440x1080 (deviceScaleFactor 2).
+  Only placeholder: {{CLINIC_NAME}} (logo, top-left on laptop and phone). Everything else is fixed copy.
+  Hero art is inline SVG, no image files needed.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Archivo+Narrow:wght@500;600&display=swap">
+<style>
+  body{margin:0}
+  .disp{font-family:'Archivo',sans-serif;font-stretch:75%}
+  .tag{border:1.5px solid #17191B;border-radius:4px;color:#17191B;display:flex;align-items:center;gap:8px}
+  .tag b{background:#F2C230;padding:2px 7px;border-radius:2px}
+  .ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0V40H0" fill="none" stroke="#2A2E31" stroke-width="1"/>
+    </pattern>
+    <!-- plan drawing, content bounds roughly x 15..360, y 60..465 -->
+    <g id="planart">
+      <path d="M60 110h280v270H60z" fill="none" stroke="#F4F0E8" stroke-width="6"/>
+      <g stroke="#F4F0E8" stroke-width="4" fill="none">
+        <path d="M60 230h120M220 230h120M200 110v80M200 270v110"/>
+      </g>
+      <g stroke="#F2C230" stroke-width="2" fill="none">
+        <path d="M180 230a40 40 0 0 1 40 0"/>
+        <path d="M200 190a30 30 0 0 1 -30 0"/>
+        <path d="M340 320a36 36 0 0 0 -36 -36"/>
+      </g>
+      <g stroke="#9AA0A3" stroke-width="2"><path d="M80 130h60M80 142h60M80 154h60M80 166h60M80 178h60M80 190h60M80 202h60"/></g>
+      <rect x="240" y="140" width="70" height="30" fill="none" stroke="#F2C230" stroke-width="3"/>
+      <g stroke="#F2C230" stroke-width="6"><path d="M110 380h70M240 380h70M340 150v60"/></g>
+      <g stroke="#F2C230" stroke-width="2" fill="#F2C230" font-family="Archivo Narrow,sans-serif" font-size="14">
+        <path d="M60 80h280M60 72v16M340 72v16"/>
+        <text x="200" y="70" text-anchor="middle" stroke="none">28'-0"</text>
+      </g>
+      <g fill="#F4F0E8" font-family="Archivo Narrow,sans-serif" font-size="13" letter-spacing=".5">
+        <text x="85" y="300">REC ROOM</text><text x="250" y="320">BEDROOM</text><text x="85" y="260">BATH</text>
+      </g>
+    </g>
+    <!-- side dimension and title block, only on the laptop -->
+    <g id="planextra">
+      <g stroke="#F2C230" stroke-width="2" fill="#F2C230" font-family="Archivo Narrow,sans-serif" font-size="14">
+        <path d="M34 110v270M26 110h16M26 380h16"/>
+        <text x="24" y="250" text-anchor="middle" stroke="none" transform="rotate(-90 24 250)">27'-0"</text>
+      </g>
+      <g fill="none" stroke="#F4F0E8" stroke-width="1.5"><rect x="210" y="410" width="140" height="40"/><path d="M210 430h140"/></g>
+      <g fill="#F4F0E8" font-family="Archivo Narrow,sans-serif" font-size="12"><text x="218" y="424">BASEMENT – PROPOSED</text><text x="218" y="444">SCALE 1/4" = 1'-0"</text></g>
+    </g>
+    <!-- tall frame for the laptop (same ratio as the 473x600 panel), nothing is cropped -->
+    <symbol id="plan" viewBox="0 0 400 508">
+      <rect width="400" height="508" fill="#17191B"/><rect width="400" height="508" fill="url(#grid)"/>
+      <g transform="translate(0 14)"><use href="#planart"/><use href="#planextra"/></g>
+    </symbol>
+    <!-- wide frame for the phone (342x250 panel) -->
+    <symbol id="plan-wide" viewBox="0 0 400 292">
+      <rect width="400" height="292" fill="#17191B"/><rect width="400" height="292" fill="url(#grid)"/>
+      <use href="#planart" transform="translate(28 -40) scale(0.86)"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div style="width:1440px;height:1080px;position:relative;overflow:hidden;background:#C9C3B6;font-family:'Archivo',system-ui,sans-serif">
+
+  <!-- LAPTOP -->
+  <div style="position:absolute;left:90px;top:170px;width:1020px;display:flex;flex-direction:column;align-items:center">
+    <div style="width:1000px;height:640px;background:#101214;border-radius:22px;padding:14px;box-sizing:border-box;box-shadow:0 40px 80px rgba(20,20,20,0.30)">
+      <div style="width:972px;height:612px;border-radius:8px;overflow:hidden;background:#F3EFE6">
+        <div style="width:1296px;height:816px;transform:scale(0.75);transform-origin:0 0;background:#F3EFE6;color:#17191B;display:flex;flex-direction:column">
+          <header style="display:flex;align-items:center;justify-content:space-between;padding:28px 64px">
+            <div class="disp ellip" style="font-size:30px;font-weight:800;max-width:380px;letter-spacing:0.01em;text-transform:uppercase">{{CLINIC_NAME}}</div>
+            <nav style="display:flex;gap:36px;font-size:15px;font-weight:500;color:#4A4E52"><span>Basements</span><span>Kitchens</span><span>Additions</span><span>Process</span></nav>
+            <div style="height:46px;padding:0 22px;border-radius:4px;background:#17191B;color:#F3EFE6;display:flex;align-items:center;font-size:14px;font-weight:700">Free estimate</div>
+          </header>
+          <div style="flex:1;display:grid;grid-template-columns:1.15fr 0.85fr;gap:56px;padding:24px 64px 56px 64px;align-items:center">
+            <div style="display:flex;flex-direction:column;gap:22px">
+              <div style="font-size:16px;font-weight:600;color:#4A4E52">Renovations in Toronto and the GTA</div>
+              <h1 class="disp" style="margin:0;font-weight:800;font-size:112px;line-height:0.92;letter-spacing:-0.01em;text-transform:uppercase">Measured twice.<br>Built once.</h1>
+              <p style="margin:0;font-size:19px;line-height:1.5;color:#3C4044;max-width:520px">Drawings, permits and construction under one contract. WSIB covered, City of Toronto permits handled for you.</p>
+              <div style="display:flex;gap:10px">
+                <div class="tag" style="padding:9px 14px;font-size:15px">Basements from <b>$65,000</b></div>
+                <div class="tag" style="padding:9px 14px;font-size:15px">Kitchens from <b>$45,000</b></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:18px;margin-top:8px">
+                <div style="height:60px;padding:0 30px;border-radius:4px;background:#F2C230;color:#17191B;display:flex;align-items:center;font-size:17px;font-weight:800">Book a free site visit</div>
+                <span style="font-size:14px;color:#5C6064">We reply within 1 business day</span>
+              </div>
+            </div>
+            <div style="height:600px;border-radius:4px;overflow:hidden;background:#17191B">
+              <svg width="100%" height="100%" viewBox="0 0 400 508" preserveAspectRatio="xMidYMid meet" style="display:block"><use href="#plan" width="400" height="508"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="width:1140px;height:24px;background:#AFA99C;border-radius:0 0 18px 18px;display:flex;justify-content:center">
+      <div style="width:160px;height:8px;background:#9B9588;border-radius:0 0 8px 8px"></div>
+    </div>
+  </div>
+
+  <!-- PHONE -->
+  <div style="position:absolute;left:1010px;top:300px;width:300px;height:620px;background:#101214;border-radius:46px;padding:10px;box-sizing:border-box;box-shadow:0 40px 70px rgba(20,20,20,0.38)">
+    <div style="width:280px;height:600px;border-radius:37px;overflow:hidden;background:#F3EFE6">
+      <div style="width:390px;height:836px;transform:scale(0.718);transform-origin:0 0;background:#F3EFE6;color:#17191B;display:flex;flex-direction:column">
+        <header style="display:flex;justify-content:space-between;align-items:center;padding:30px 24px 0 24px">
+          <div class="disp ellip" style="font-size:26px;font-weight:800;max-width:270px;text-transform:uppercase">{{CLINIC_NAME}}</div>
+          <div style="width:44px;height:44px;border-radius:4px;background:#17191B;display:flex;align-items:center;justify-content:center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3EFE6" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h16M4 16h16"/></svg>
+          </div>
+        </header>
+        <div style="margin:18px 24px 0 24px;height:250px;border-radius:4px;overflow:hidden;background:#17191B">
+          <svg width="100%" height="100%" viewBox="0 0 400 292" preserveAspectRatio="xMidYMid meet" style="display:block"><use href="#plan-wide" width="400" height="292"/></svg>
+        </div>
+        <div style="padding:20px 24px 0 24px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:14px;font-weight:600;color:#4A4E52">Renovations in Toronto and the GTA</div>
+          <h2 class="disp" style="margin:0;font-weight:800;font-size:52px;line-height:0.94;text-transform:uppercase">Measured twice. Built once.</h2>
+          <p style="margin:0;font-size:15px;line-height:1.5;color:#3C4044">Drawings, permits and build under one contract.</p>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:0 24px">
+          <div class="tag" style="height:46px;padding:0 16px;font-size:16px">Basements from <b>$65,000</b></div>
+          <div class="tag" style="height:46px;padding:0 16px;font-size:16px">Kitchens from <b>$45,000</b></div>
+          <div class="tag" style="height:46px;padding:0 16px;font-size:16px">Additions from <b>$140,000</b></div>
+        </div>
+        <div style="padding:0 24px 30px 24px">
+          <div style="height:56px;border-radius:4px;background:#F2C230;color:#17191B;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800">Book a free site visit</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
