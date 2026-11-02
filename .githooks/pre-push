@@ -1,0 +1,6 @@
+#!/bin/sh
+# Last check before anything leaves the computer. See tools/check_private.py.
+root="$(git rev-parse --show-toplevel)"
+py="$root/meta-lead-gen/venv/Scripts/python.exe"
+[ -x "$py" ] || py=python
+exec "$py" "$root/tools/check_private.py" --tree
