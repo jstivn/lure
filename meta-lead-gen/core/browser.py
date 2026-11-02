@@ -34,6 +34,12 @@ PLATFORM_SETTINGS = {
 
 
 SEARCH_WORKER_BASE_PORT = 9340
+SEEDED_MARKER = ".seeded_from_fb"
+PROFILE_COPY_SKIP = (
+    "Cache", "Code Cache", "GPUCache", "GPUPersistentCache", "GrShaderCache", "ShaderCache", "DawnGraphiteCache",
+    "DawnWebGPUCache", "Service Worker", "CacheStorage", "Crashpad", "component_crx_cache",
+    "SingletonLock", "SingletonCookie", "SingletonSocket", "lockfile", "DevToolsActivePort",
+)
 
 
 def get_chrome_executable() -> str:
@@ -115,11 +121,37 @@ class BrowserSession:
         except Exception:
             return False
 
+    def _seed_worker_profile(self):
+        """Проверка страницы Facebook требует вход: один раз копируем залогиненный chrome_fb в профиль воркера."""
+        marker = self.profile_dir / SEEDED_MARKER
+        if marker.exists():
+            return
+        src = PROFILES_DIR / PLATFORM_SETTINGS["fb"]["profile_dir_name"]
+        if not src.exists():
+            raise RuntimeError("Profile chrome_fb not found: log in to Facebook first (login-fb).")
+        console.print(f"[yellow]Копирую вход Facebook в профиль {self.profile_dir.name} (один раз, ~1 мин)...[/yellow]")
+        skipped = []
+
+        def copy_tolerant(s, d):
+            try:
+                shutil.copy2(s, d)
+            except OSError:
+                skipped.append(s)
+
+        shutil.copytree(src, self.profile_dir, ignore=shutil.ignore_patterns(*PROFILE_COPY_SKIP),
+                        copy_function=copy_tolerant, dirs_exist_ok=True)
+        marker.write_text("copied from chrome_fb", encoding="utf-8")
+        if skipped:
+            logger.info(f"Profile copy skipped {len(skipped)} locked files")
+
     async def _ensure_chrome_running(self):
         """Ensures that native Google Chrome is running on its designated port and profile."""
         if await self._is_cdp_alive():
             logger.info(f"Connecting to existing running Google Chrome for {self.display_name} on port {self.cdp_port}...")
             return
+
+        if self.profile_dir.name.startswith("chrome_search_"):
+            self._seed_worker_profile()
 
         chrome_exe = get_chrome_executable()
         self.profile_dir.mkdir(parents=True, exist_ok=True)
