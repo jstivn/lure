@@ -71,7 +71,27 @@ class WhatsAppSender:
         task_wp1 = self.run_session(target_account_key="profile_1", initial_delay_sec=0)
         task_wp2 = self.run_session(target_account_key="profile_2", initial_delay_sec=self.min_cross_delay)
 
-        await asyncio.gather(task_wp1, task_wp2)
+        results = await asyncio.gather(task_wp1, task_wp2, return_exceptions=True)
+        for name, result in zip(("WP 1", "WP 2"), results):
+            if isinstance(result, BaseException):
+                console.print(f"[bold red]✗ {name} аварийно остановлен: {rich.markup.escape(repr(result))}[/bold red]")
+
+    async def _ensure_account_cooldown(self, account_key: str, min_delay: int, max_delay: int, account_name: str):
+        """
+        Per-account pause measured from the DB (last SENT of this account), so it survives
+        restarts of the script/Lure: a fresh session can no longer send right after the previous one.
+        """
+        elapsed = self.db.get_seconds_since_last_sent(account_key)
+        if elapsed is None:
+            return
+        required = random.randint(min_delay, max_delay)
+        if elapsed < required:
+            wait_time = int(required - elapsed)
+            console.print(
+                f"\n[bold yellow]🛡 [{account_name}] Последнее сообщение с этого номера было {int(elapsed)}с назад, "
+                f"нужна пауза {required}с. Жду ещё {wait_time // 60}м {wait_time % 60:02d}с.[/bold yellow]"
+            )
+            await self._run_cooldown_lock(wait_time, description=f"Пауза номера [{account_name}]")
 
     async def _ensure_safe_wa_interval(self, min_interval_sec: int = 300, account_name: str = ""):
         """
@@ -165,6 +185,7 @@ class WhatsAppSender:
 
         # Main Outreach Loop
         while sent_today < daily_limit:
+            await self._ensure_account_cooldown(target_account_key, min_delay, max_delay, account_name)
             lead = self.db.get_next_lead(target_account_key, self.niches)
             if not lead:
                 console.print(f"[yellow]No more QUEUED leads for {account_name} in database"
@@ -237,9 +258,7 @@ class WhatsAppSender:
                         console.print(f"\n[bold green]Goal reached for today ({sent_today}/{daily_limit}). Session complete![/bold green]")
                         break
 
-                    # Mandatory Cooldown Timer Lock
-                    cooldown = random.randint(min_delay, max_delay)
-                    await self._run_cooldown_lock(cooldown, description=f"Кулдаун [{account_name}]")
+                    # Пауза между сообщениями этого номера ждётся в начале цикла (_ensure_account_cooldown)
                 else:
                     console.print(f"  [bold red]✗ Ошибка отправки/доставки на номер {phone} ({delivery_status}). Статус: FAILED.[/bold red]")
                     self.db.mark_status(phone, "FAILED")
