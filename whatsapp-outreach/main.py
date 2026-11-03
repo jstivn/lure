@@ -5,7 +5,9 @@ lead imports, and database management.
 """
 
 import asyncio
+import os
 import sys
+from pathlib import Path
 
 # Force UTF-8 on Windows console
 if sys.platform == "win32":
@@ -25,11 +27,42 @@ from core.database import WhatsAppDatabase
 console = Console(force_terminal=True, legacy_windows=False)
 
 
+LOCK_PATH = Path(__file__).resolve().parent / "data" / "send.pid"
+
+
+def _pid_alive(pid: int) -> bool:
+    import ctypes
+    handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False
+    code = ctypes.c_ulong()
+    ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+    ctypes.windll.kernel32.CloseHandle(handle)
+    return code.value == 259  # STILL_ACTIVE
+
+
+def _acquire_send_lock() -> bool:
+    """Одна рассылка WhatsApp за раз: два процесса обходили бы паузы друг друга."""
+    try:
+        if LOCK_PATH.exists():
+            other = int(LOCK_PATH.read_text().strip() or 0)
+            if other and other != os.getpid() and _pid_alive(other):
+                return False
+        LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+        LOCK_PATH.write_text(str(os.getpid()))
+    except (OSError, ValueError):
+        pass
+    return True
+
+
 async def main():
     args = sys.argv[1:]
     command = args[0].lower() if args else "help"
 
     if command == "send":
+        if not _acquire_send_lock():
+            console.print("[bold red]Рассылка WhatsApp уже запущена в другом процессе. Второй экземпляр не стартует.[/bold red]")
+            return
         sender = WhatsAppSender()
         target = "parallel"
         if len(args) > 1:
