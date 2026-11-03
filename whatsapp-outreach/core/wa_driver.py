@@ -103,12 +103,11 @@ class WhatsAppDriver:
         input_selector = "footer div[contenteditable='true'], div[contenteditable='true'][data-tab='10'], div[role='textbox'][aria-placeholder*='message'], div[role='textbox'][aria-placeholder*='сообщение']"
         
         invalid_keywords = [
-            "invalid", "неверный", "не найден", "url", "shared via url",
-            "не зарегистрирован", "зарегистрирован", "недействительный", "недействителен",
-            "не существует", "isn't on whatsapp", "not on whatsapp",
-            "doesn't exist", "couldn't find", "no account found",
-            "not registered", "не удается открыть чат", "failed to open chat",
-            "номер не зарегистрирован", "номер телефона не"
+            "shared via url is invalid", "phone number shared via url",
+            "isn't on whatsapp", "is not on whatsapp", "not on whatsapp",
+            "не зарегистрирован", "номер телефона, указанный в url",
+            "недействительный номер", "недействителен",
+            "no account found"
         ]
 
         while asyncio.get_event_loop().time() - start_time < 35:
@@ -120,11 +119,8 @@ class WhatsAppDriver:
                 except Exception:
                     text = ""
 
-                # If text matches keywords, OR dialog contains OK button with short text (<250 chars)
-                has_invalid_kw = any(k in text for k in invalid_keywords)
-                has_ok_btn = any(w in text for w in ["ok", "ок"])
-
-                if has_invalid_kw or (has_ok_btn and len(text) < 250):
+                # Только явное «номера нет в WhatsApp»; любой другой диалог (загрузка, обновление, лимиты) не списывает лид
+                if any(k in text for k in invalid_keywords):
                     # Click OK button to dismiss popup
                     try:
                         btn = popup.locator("button:has-text('OK'), button:has-text('ОК'), div[role='button']:has-text('OK'), div[role='button']:has-text('ОК'), button, div[role='button']").first
