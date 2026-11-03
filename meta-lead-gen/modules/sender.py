@@ -271,6 +271,21 @@ class SafeOutreachSender:
 
 
 
+            # 1.05 Страница должна быть именно профилем этого лида: иначе читаем шапку чужого профиля
+            # (так 16 разных бизнесов получили сайт pedinimiami.com и были отсеяны как «есть сайт»)
+            if platform == "IG":
+                expected_user = (profile_url or "").rstrip("/").split("/")[-1].split("?")[0].lower()
+                if expected_user and expected_user not in self.page.url.lower():
+                    try:
+                        await self.page.goto(profile_url, wait_until="domcontentloaded", timeout=30000)
+                        await asyncio.sleep(3)
+                    except Exception:
+                        pass
+                    if expected_user not in self.page.url.lower():
+                        console.print(f"[red]Открыт не тот профиль ({self.page.url}), ожидался {expected_user}. Пропускаю без отсева.[/red]")
+                        self.db.mark_as_failed(lead_id, "Instagram opened a different profile than expected")
+                        continue
+
             # 1.1 Fast Region & Account Availability Check
 
             is_restricted, rest_reason = await self._check_profile_restriction(platform)
