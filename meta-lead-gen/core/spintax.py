@@ -12,7 +12,7 @@ class SpintaxEngine:
     Меняются только [ЧТО] рекламируют и [ДЕЙСТВИЕ] клиентов, остальное одинаково.
     """
 
-    OPENER = "{Hi|Hey|Hello}! Saw your WHAT ad on SOURCE."
+    OPENER = "{Hi|Hey|Hello}! Saw your ad on SOURCE."
 
     ENDINGS = [
         "Do people ACTION directly HERE?",
@@ -21,15 +21,9 @@ class SpintaxEngine:
     ]
 
     # hook_niche из catalog.json -> (WHAT, ACTION)
+    # Один универсальный текст для всех ниш: ничего не говорит о том, что именно рекламируют
     NICHES = {
-        "rental": ("{rental|car rental}", "{book with you|reserve with you}"),
-        "beauty": ("{clinic|treatment|skincare|beauty}", "{book with you|book appointments with you}"),
-        "dental": ("{dental|clinic|smile}", "{book with you|book consultations with you}"),
-        "real_estate": ("{property|real estate|project}", "{get in touch with you|reach out to you}"),
-        "yacht": ("{yacht|tour|boat|charter}", "{book with you|reserve with you}"),
-        "renovation": ("{remodeling|kitchen|renovation}", "{get quotes from you|book with you}"),
-        # ниши вне таблицы
-        "generic": ("{business|service}", "{book with you|get in touch with you}"),
+        "generic": ("", "{get in touch with you|reach out to you|message you}"),
     }
 
     @staticmethod
@@ -47,8 +41,7 @@ class SpintaxEngine:
     @classmethod
     def generate_hook(cls, niche_type: Optional[str] = None, platform: Optional[str] = None) -> str:
         """Собирает шаг 1 для ниши (hook_niche) и платформы ("IG" или Facebook)."""
-        key = (niche_type or "").strip().lower()
-        what, action = cls.NICHES.get(key, cls.NICHES["generic"])
+        what, action = cls.NICHES["generic"]
         is_ig = platform == "IG"
 
         template = (cls.OPENER + " " + random.choice(cls.ENDINGS)) \

@@ -20,4 +20,16 @@ if not exist "%VENV%\Scripts\python.exe" (
     )
 )
 
+if not exist "%USERPROFILE%\Desktop\Lure.lnk" powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0make-shortcut.ps1"
+
+echo.
+echo   ==============================
+echo     LURE is starting...
+echo     The app window will open in a few seconds.
+echo     Do not close this window yet.
+echo   ==============================
+echo.
 start "" "%VENV%\Scripts\pythonw.exe" control-hub\app.py
+timeout /t 8 /nobreak >nul
+echo   Lure is running. This window will close now.
+timeout /t 2 /nobreak >nul
