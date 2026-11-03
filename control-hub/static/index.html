@@ -334,7 +334,10 @@
                   <div class="pt-2 border-t border-amber-200" x-show="status.channels.fb.cooldown_remaining > 0">
                     <div class="flex items-center justify-between text-xs font-mono font-bold text-amber-800 mb-1">
                       <span>Защита от спам-бана Meta:</span>
-                      <span x-text="getScriptVision('fb').timeStr"></span>
+                      <span class="flex items-center gap-2">
+                        <span x-text="getScriptVision('fb').timeStr"></span>
+                        <button @click="sendNow('fb')" class="apple-btn apple-btn-blue text-[11px] py-0.5 px-2">Отправить сейчас</button>
+                      </span>
                     </div>
                     <div class="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
                       <div class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-1000"
@@ -480,7 +483,10 @@
                   <div class="pt-2 border-t border-amber-200" x-show="status.channels.ig.cooldown_remaining > 0">
                     <div class="flex items-center justify-between text-xs font-mono font-bold text-amber-800 mb-1">
                       <span>Защита от спам-бана Meta:</span>
-                      <span x-text="getScriptVision('ig').timeStr"></span>
+                      <span class="flex items-center gap-2">
+                        <span x-text="getScriptVision('ig').timeStr"></span>
+                        <button @click="sendNow('ig')" class="apple-btn apple-btn-blue text-[11px] py-0.5 px-2">Отправить сейчас</button>
+                      </span>
                     </div>
                     <div class="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
                       <div class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-1000"
@@ -626,7 +632,10 @@
                   <div class="pt-2 border-t border-amber-200" x-show="status.channels.wa1.cooldown_remaining > 0">
                     <div class="flex items-center justify-between text-xs font-mono font-bold text-amber-800 mb-1">
                       <span>Защита от блокировки WhatsApp:</span>
-                      <span x-text="getScriptVision('wa1').timeStr"></span>
+                      <span class="flex items-center gap-2">
+                        <span x-text="getScriptVision('wa1').timeStr"></span>
+                        <button @click="sendNow('wa1')" class="apple-btn apple-btn-blue text-[11px] py-0.5 px-2">Отправить сейчас</button>
+                      </span>
                     </div>
                     <div class="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
                       <div class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-1000"
@@ -772,7 +781,10 @@
                   <div class="pt-2 border-t border-amber-200" x-show="status.channels.wa2.cooldown_remaining > 0">
                     <div class="flex items-center justify-between text-xs font-mono font-bold text-amber-800 mb-1">
                       <span>Защита от блокировки WhatsApp:</span>
-                      <span x-text="getScriptVision('wa2').timeStr"></span>
+                      <span class="flex items-center gap-2">
+                        <span x-text="getScriptVision('wa2').timeStr"></span>
+                        <button @click="sendNow('wa2')" class="apple-btn apple-btn-blue text-[11px] py-0.5 px-2">Отправить сейчас</button>
+                      </span>
                     </div>
                     <div class="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
                       <div class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-1000"

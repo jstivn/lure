@@ -464,6 +464,13 @@ async def stop_action(payload: ActionPayload):
     return {"status": "stopped", "target": payload.target}
 
 
+@app.post("/api/action/send_now")
+async def send_now(payload: ActionPayload):
+    """Skips the safety timer of a running channel (fb, ig, wa1, wa2)."""
+    ok = await orchestrator.send_now(payload.target)
+    return {"status": "skipped" if ok else "rejected", "target": payload.target}
+
+
 class OpenBrowserPayload(BaseModel):
     channel: str
     url: Optional[str] = None

@@ -132,19 +132,33 @@ async def smooth_scroll(page: Page, distance: int = 500, direction: str = "down"
         await asyncio.sleep(random.uniform(0.04, 0.12))
 
 
-async def terminal_countdown(seconds: int, prefix: str = "Anti-Ban Safe Delay"):
+def skip_flag_path(key: str):
+    """Файл, которым Lure просит пропустить текущий таймер канала (кнопка «Отправить сейчас»)."""
+    from pathlib import Path
+    return Path(__file__).resolve().parent.parent / "data" / f"skip_wait_{key}.flag"
+
+
+async def terminal_countdown(seconds: int, prefix: str = "Anti-Ban Safe Delay", skip_key: Optional[str] = None):
     """
     Displays an in-place live countdown timer in the terminal.
+    skip_key: если задан, таймер прерывается, когда появляется skip_wait_<skip_key>.flag.
     """
+    flag = skip_flag_path(skip_key) if skip_key else None
+    if flag:
+        flag.unlink(missing_ok=True)  # старый клик не должен пропустить новый таймер
     start_time = time.time()
     end_time = start_time + seconds
 
     while True:
+        if flag and flag.exists():
+            flag.unlink(missing_ok=True)
+            print(f"⏭ [{prefix}] Таймер пропущен вручную, отправляю сейчас", flush=True)
+            return True
         remaining = int(end_time - time.time())
         if remaining <= 0:
             sys.stdout.write(f"\r[green]✔ {prefix} complete. Resuming!{' ' * 20}\n[/green]")
             sys.stdout.flush()
-            break
+            return False
 
         mins, secs = divmod(remaining, 60)
         time_str = f"{mins:02d}:{secs:02d}"

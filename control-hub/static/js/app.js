@@ -886,6 +886,23 @@ function registerHubApp() {
       }
     },
 
+    async sendNow(ch) {
+      try {
+        const res = await fetch('/api/action/send_now', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target: ch })
+        });
+        const data = await res.json();
+        if (data.status === 'skipped') {
+          this.showToast('Отправка', 'Таймер пропущен, пишу следующему лиду', 'warning');
+        }
+        await this.fetchStatus();
+      } catch (e) {
+        console.error(e);
+      }
+    },
+
     async stopAction(target = 'all') {
       try {
         await fetch('/api/action/stop', {

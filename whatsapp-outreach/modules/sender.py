@@ -55,6 +55,7 @@ class WhatsAppSender:
         self.min_cross_delay = self.config.get("min_cross_platform_delay_sec", 300)
         # Lure передаёт ниши последнего поиска; пусто = вся очередь
         self.niches = [n.strip() for n in os.environ.get("WA_NICHES", "").split(",") if n.strip()]
+        self._force_send = set()  # профили, у которых нажали «Отправить сейчас»: пока не уйдёт сообщение, ожидания пропускаются
 
     async def run_parallel_session(self):
         """Runs both WP 1 and WP 2 concurrently with safe 5-minute staggering and cross-profile interval."""
@@ -82,7 +83,7 @@ class WhatsAppSender:
         restarts of the script/Lure: a fresh session can no longer send right after the previous one.
         """
         elapsed = self.db.get_seconds_since_last_sent(account_key)
-        if elapsed is None:
+        if elapsed is None or account_key in self._force_send:
             return
         required = random.randint(min_delay, max_delay)
         if elapsed < required:
@@ -91,14 +92,16 @@ class WhatsAppSender:
                 f"\n[bold yellow]🛡 [{account_name}] Последнее сообщение с этого номера было {int(elapsed)}с назад, "
                 f"нужна пауза {required}с. Жду ещё {wait_time // 60}м {wait_time % 60:02d}с.[/bold yellow]"
             )
-            await self._run_cooldown_lock(wait_time, description=f"Пауза номера [{account_name}]")
+            await self._run_cooldown_lock(wait_time, description=f"Пауза номера [{account_name}]", skip_key=account_key)
 
-    async def _ensure_safe_wa_interval(self, min_interval_sec: int = 300, account_name: str = ""):
+    async def _ensure_safe_wa_interval(self, min_interval_sec: int = 300, account_name: str = "", account_key: str = ""):
         """
         Enforces that at least min_interval_sec (default 300s = 5 minutes)
         has passed since ANY message was sent across either WhatsApp profile.
         Guarantees WP 1 and WP 2 never send in bursts or closer than 5 minutes.
         """
+        if account_key in self._force_send:
+            return
         elapsed = self.db.get_seconds_since_last_sent()
         if elapsed is not None and elapsed < min_interval_sec:
             wait_time = int(min_interval_sec - elapsed)
@@ -108,7 +111,7 @@ class WhatsAppSender:
                     f"\n[bold yellow]🛡 [{account_name}] Защита WhatsApp от спама: последнее сообщение в WhatsApp было {int(elapsed)}с назад.\n"
                     f"  Ожидание {minutes}м {rem_sec:02d}с для соблюдения строгого интервала не менее 5 минут между смс...[/bold yellow]"
                 )
-                await self._run_cooldown_lock(wait_time, description=f"Защита 5+ мин [{account_name}]")
+                await self._run_cooldown_lock(wait_time, description=f"Защита 5+ мин [{account_name}]", skip_key=account_key)
                 console.print(f"[bold green]🔔 Интервал 5+ минут соблюдён! [{account_name}] Продолжаю отправку...[/bold green]\n")
 
     async def run_session(self, target_account_key: str = "profile_1", initial_delay_sec: int = 0):
@@ -153,7 +156,7 @@ class WhatsAppSender:
         if initial_delay_sec > 0:
             minutes, rem_sec = divmod(initial_delay_sec, 60)
             console.print(f"\n[bold yellow]⏳ Стартовое разнесение рассылки [{account_name}]: ожидание {minutes}м {rem_sec:02d}с, чтобы не отправлять одновременно с другим номером...[/bold yellow]")
-            await self._run_cooldown_lock(initial_delay_sec, description=f"Стартовая пауза [{account_name}]")
+            await self._run_cooldown_lock(initial_delay_sec, description=f"Стартовая пауза [{account_name}]", skip_key=target_account_key)
             console.print(f"[bold green]🔔 Стартовая пауза [{account_name}] завершена! Приступаю к отправке лидов...[/bold green]\n")
 
         # Sync known numbers from data/list.txt
@@ -228,7 +231,7 @@ class WhatsAppSender:
                 continue
 
             # Check cross-account safe interval (strictly >= 5 minutes between any WhatsApp message)
-            await self._ensure_safe_wa_interval(min_interval_sec=self.min_cross_delay, account_name=account_name)
+            await self._ensure_safe_wa_interval(min_interval_sec=self.min_cross_delay, account_name=account_name, account_key=target_account_key)
 
             # Dispatch logic: full_auto vs semi_auto
             if self.outreach_mode == "full_auto":
@@ -249,6 +252,7 @@ class WhatsAppSender:
                     }.get(delivery_status, delivery_status)
 
                     console.print(f"  [bold green]✔ Сообщение успешно отправлено на {phone}! Статус доставки: {delivery_label}[/bold green]")
+                    self._force_send.discard(target_account_key)
                     self.db.mark_status(phone, "SENT", hook_text)
                     self.db.append_to_list_txt(self.list_txt_path, phone, account_name, b_name)
                     sent_today += 1
@@ -301,8 +305,12 @@ class WhatsAppSender:
             else:
                 console.print("[dim]Invalid input. Press Enter to send, 's' to skip, or 'q' to quit.[/dim]")
 
-    async def _run_cooldown_lock(self, seconds: int, description: str = "Sleeping..."):
-        """Runs an anti-spam cooldown timer with live progress bar or clean ticks for pipes."""
+    async def _run_cooldown_lock(self, seconds: int, description: str = "Sleeping...", skip_key: str = ""):
+        """Runs an anti-spam cooldown timer with live progress bar or clean ticks for pipes.
+        skip_key: ключ профиля; файл skip_wait_<ключ>.flag (кнопка «Отправить сейчас» в Lure) прерывает таймер."""
+        flag = BASE_DIR / "data" / f"skip_wait_{skip_key}.flag" if skip_key else None
+        if flag:
+            flag.unlink(missing_ok=True)  # старый клик не должен пропустить новый таймер
         minutes, rem_sec = divmod(seconds, 60)
         console.print(f"\n[bold yellow]🔒 Таймер безопасности ({description}): {minutes}м {rem_sec:02d}с пауза...[/bold yellow]")
 
@@ -321,12 +329,21 @@ class WhatsAppSender:
                 for _ in range(seconds):
                     await asyncio.sleep(1)
                     progress.update(task, advance=1)
+                    if flag and flag.exists():
+                        break
         else:
             for elapsed in range(seconds):
                 await asyncio.sleep(1)
+                if flag and flag.exists():
+                    break
                 remaining = seconds - elapsed - 1
                 if remaining > 0 and (remaining % 30 == 0 or remaining in [60, 30, 10, 5]):
                     m, s = divmod(remaining, 60)
                     print(f"⏱ [{description}] Next lead in: {m:02d}:{s:02d}", flush=True)
 
+        if flag and flag.exists():
+            flag.unlink(missing_ok=True)
+            console.print("[bold green]⏭ Таймер пропущен вручную, отправляю сейчас.[/bold green]\n")
+            self._force_send.add(skip_key)  # следующие ожидания для этого лида тоже пропускаем
+            return
         console.print("[bold green]✔ Пауза завершена. Готов к следующему лиду.[/bold green]\n")

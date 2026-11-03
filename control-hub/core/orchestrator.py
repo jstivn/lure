@@ -194,6 +194,34 @@ class CampaignOrchestrator:
 
         self.cooldown_tasks[channel] = asyncio.create_task(_ticker())
 
+    # канал в Lure -> (папка модуля, ключ в имени файла skip_wait_<ключ>.flag)
+    SKIP_FLAGS = {
+        "fb": ("meta-lead-gen", "FB"),
+        "ig": ("meta-lead-gen", "IG"),
+        "wa1": ("whatsapp-outreach", "profile_1"),
+        "wa2": ("whatsapp-outreach", "profile_2"),
+    }
+
+    async def send_now(self, channel: str) -> bool:
+        """Кнопка «Отправить сейчас»: просит скрипт канала прервать таймер безопасности и писать следующему лиду."""
+        entry = self.SKIP_FLAGS.get(channel)
+        if not entry or not self.status.get(channel, {}).get("running"):
+            return False
+        folder, key = entry
+        flag = BASE_APPS_DIR / folder / "data" / f"skip_wait_{key}.flag"
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.write_text("1")
+
+        task = self.cooldown_tasks.get(channel)
+        if task and not task.done():
+            task.cancel()
+        self.status[channel]["cooldown_remaining"] = 0
+        self.status[channel]["step"] = "warmup"
+        self.status[channel]["status_text"] = "Таймер пропущен, отправляю сейчас"
+        await log_stream.broadcast(channel.upper(), "⏭ Таймер пропущен вручную: перехожу к отправке", "warning")
+        await self._broadcast_state_update(channel.upper())
+        return True
+
     def _spawn(self, key: str, coro) -> bool:
         """Запускает задачу под ключом key; повторный запуск уже работающего ключа отклоняется."""
         if self.is_running(key):

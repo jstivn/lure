@@ -171,6 +171,8 @@ class SafeOutreachSender:
 
         # Fetch leads ready to send if not provided
 
+        auto_fetch = leads is None
+
         if leads is None:
 
             leads = self.db.get_leads_ready_to_send(limit=remaining_quota, platform=plat)
@@ -197,7 +199,7 @@ class SafeOutreachSender:
 
             console.print(f"\n[bold yellow]⏳ Стартовая пауза [{plat_name}]: ожидание {mins}м {secs:02d}с, чтобы не отправлять одновременно с другой сетью...[/bold yellow]")
 
-            await terminal_countdown(initial_delay_sec, prefix=f"{plat_name} Stagger Delay")
+            await terminal_countdown(initial_delay_sec, prefix=f"{plat_name} Stagger Delay", skip_key=plat)
 
             console.print(f"[bold green]🔔 Стартовая пауза [{plat_name}] завершена! Приступаю к отправке лидов...[/bold green]\n")
 
@@ -339,6 +341,7 @@ class SafeOutreachSender:
 
             if success:
 
+                self._force_send = False
                 self.db.mark_as_sent(lead_id, hook_message)
 
                 sent_count += 1
@@ -361,7 +364,8 @@ class SafeOutreachSender:
 
                     console.print(f"\n[bold cyan]🔒 Защита от бана: таймер заблокирован на {mins}м {secs:02d}с до следующего лида...[/bold cyan]")
 
-                    await terminal_countdown(delay_sec, prefix="Anti-Ban Cooldown")
+                    if await terminal_countdown(delay_sec, prefix="Anti-Ban Cooldown", skip_key=platform):
+                        self._force_send = True  # ручной пропуск: межсетевую паузу для следующего лида тоже не ждём
 
                     try:
 
@@ -477,6 +481,15 @@ class SafeOutreachSender:
 
 
 
+        else:
+            # Очередь могла пополниться, пока шла рассылка (поиск работает параллельно): берём новых лидов, пока есть квота
+            if auto_fetch and sent_count < remaining_quota:
+                fresh = self.db.get_leads_ready_to_send(limit=remaining_quota - sent_count, platform=plat)
+                if fresh:
+                    console.print(f"[bold cyan]Появились новые лиды ({len(fresh)}), продолжаю рассылку {plat or ''}...[/bold cyan]")
+                    await self.run(leads=None, platform=platform, initial_delay_sec=0)
+                    return
+
         console.print("\n[bold green]✔ All outreach tasks for this batch completed![/bold green]")
 
 
@@ -492,6 +505,9 @@ class SafeOutreachSender:
         Guarantees that FB and IG never send in bursts or overlapping windows.
 
         """
+
+        if getattr(self, "_force_send", False):
+            return
 
         elapsed = self.db.get_seconds_since_last_sent()
 
@@ -513,7 +529,8 @@ class SafeOutreachSender:
 
                 )
 
-                await terminal_countdown(wait_time, prefix="Meta Inter-Message Safe Delay")
+                if await terminal_countdown(wait_time, prefix="Meta Inter-Message Safe Delay", skip_key=plat_name or None):
+                    self._force_send = True
 
                 console.print(f"[bold green]🔔 Интервал 5+ минут соблюдён! {plat_prefix}Продолжаю отправку...[/bold green]\n")
 
